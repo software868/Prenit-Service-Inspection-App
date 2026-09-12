@@ -1,0 +1,75 @@
+﻿Check List for Modular OT's
+Project: Darbhanga
+No. of OT : 8 Nos.
+Checked By:
+Work Details
+Wall Paneling
+Paint
+Ceiling Paneling
+Paint
+Laminar Air Flow System
+H-14 HEPA Filters
+Diffuser Sheet
+Internal HVAC ducting and exhaust system
+Return Air Grills
+PVC Flooring
+Finishing of flooring
+Hermetically Sealed Doors
+Door Functioning
+Door Sensors
+Door footswitch working
+Door Hand Switch/ Sensor working
+Door Battery
+Tuch Screen Control Panel
+Display Working
+Medical Alarm with High, Low and Normal indicator
+Control for general lighting: ON/OFF and dimming control
+Digital room pressure indicator
+HEPA Filter differential pressure
+Pressure Relife Dampers
+Operating List Board
+X-Ray View Box
+Dimming
+Scrub Sink
+Thermostatic mixing
+Infrared sensors
+Foot operation
+Storage Unit
+Pendants for Anesthetist
+UP& Down Movement
+Bracking
+Electrical switch & Sockets
+Gas outlets
+Data Socket RJ-45-2 Nos
+Gas supply
+Pendants for Surgeon
+UP& Down Movement
+Bracking
+Electrical switch & Sockets
+Gas outlets
+Data Socket RJ-45-2 Nos
+Gas supply
+Peripheral Lighting and clean room luminaries
+Finishing
+dimming
+Electrical Installation
+Main DB
+Cooling Fan
+MCBs
+Wiring
+Isolation Panel
+Cooling Fan
+MCBs
+Temp Sensor
+OT light status
+Controls at light head
+Dimming
+All LEDS working status
+OT light Camera Status
+Monitor Status
+HD Recorder status
+PACS Monitor
+UPS
+Battery Status
+Signature
+Date:

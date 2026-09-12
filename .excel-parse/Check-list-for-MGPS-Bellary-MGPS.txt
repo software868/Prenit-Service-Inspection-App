@@ -1,0 +1,129 @@
+﻿Check List for MGPS
+Project: Ballary
+Details
+Plant Room
+Leakage testing
+Oxygen System
+- All Connection to Ramp/ Manifold Right or left bank should be tighten/ fixed firmly
+- All pig tail pipes should be connected properly with the Ramp/ Manifold
+- All middle frame & Chain fixed properly
+Signage should be Fixed for Emergency manifold and main manifold (OXYGEN CONTROL PANEL) in English & Local Language/ Hindi
+- All Cylinders should be Fixed properly
+Auto Change Over working properly (From Right to Left, Left to Right, Main to emergency)
+- All Gauges fixed in control panel showing proper pressure (Cylinder Pressure both banks & Line pressure)
+- All Pressure regulators working properly
+- All Safety valves fixed
+- Arrow marking to indicate direction of flow with colour code
+Nitrous Oxide System
+- All Connection to Ramp/ Manifold Right or left bank should be tighten/ fixed firmly
+- All pig tail pipes should be connected properly with the Ramp/ Manifold
+- All middle frame & Chain fixed properly
+- Signage should be Fixed for Emergency manifold and main manifold (OXYGEN MANIFOLD & RIGHT BANK, LEFT BANK) in English & Local Language/ Hindi
+- All Cylinders should be Fixed properly
+- Auto Change Over working properly (From Right to Left, Left to Right, Main to emergency)
+- All Gauges fixed in control panel showing proper pressure (Cylinder Pressure both banks & Line pressure)
+- All Pressure regulators working properly
+- Mainline valve should be fixed at reachable height
+- Heater for Nitrous Oxide Installed
+- Arrow marking to indicate direction of flow with colour code
+Compressed Air System
+- Antivibration pads installed with all compressors
+- Compressor stacks properly fixed with Fasteners
+All compressor sources are start stop properly in auto mode (the compressor get start at 7.1 bar and stops at 8.3bar)
+- Leakage up to reducing station must be checked at all joints
+- After cooler start- stop automatically
+- All auto drain valves working properly
+- Drain line outside plant fixed for Tank and dryer
+- Dew Point monitor working properly on dryer
+- At all time only one side dryer should be in running condition and other side in standby mode
+- "DANGER HOT LINE" Sign near main line starting from compressor to after cooler
+- This machine starts and stops automatically without any warning' label near compressor and vac pump
+Flow indication - Arrow should be fixed on each line.
+Connection with master alarm from compressor control panel
+Vacuum System
+- Antivibration pads installed for all vacuum pumps
+- Vacuum pump stack properly fixed with Fasteners
+- All Vacuum Pump sources are start stop properly in auto mode (the Vacuum Pump get start at 560mmhg and stops at 650mmhg)
+- The Connection wire from tank sensor to Vacuum pump control panel fixed properly
+- Filters fixed firmly and the trap bottle installed with both filters
+Exhaust line installed upto building outside above ceiling height and should be fixed with "Do not obstruct" Signage
+- Proper ventilation available
+- Proper Signages fixed for Vacuum Pump & Tank
+- This machine starts and stops automatically without any warning' label near compressor and vacuum pump
+Flow indication - Arrow should be fixed on each line
+- Connection with master alarm from Vacuum pump control panel
+AGSS System
+- Remote Switch fixed and working on auto mode properly out side the OT
+- Filters fixed firmly
+- Exhaust line installed upto out side the room and should be fixed with "Do not obstruct" Signage
+- Proper ventilation available
+- Proper Signages fixed for AGS System
+- Flow indication - Arrow should be fixed on each line minimum 3m distance
+- Connection with master alarm from AGS control panel
+Mater Alarm
+- Mater Alarm configuration
+- Volume of Alarm bip should be listenable
+- Door fixed properly
+- Connected with internet
+- Connected with Switch box
+- Should be connected with all Area Alarms
+Testing Points
+- Outlets fixed at proper height
+- Isolation valves fixed at proper height
+Signage and Color coding for Equipment's and Plant room
+- Red caution line on floor for all equipment's
+- No smoking/No naked flame
+- Do's and Don'ts's
+- 'Do not obstruct ' Label on exhaust pipes
+- Signage for all equipment's
+Trench & Riser
+Saddles should be firmly fixed
+- Color coadding should be marked on all service copper pipe/ main line with arrow stickers
+- Sleeves should be fixed properly wherever copper pipe/line, crossing/touching , floor/wall
+- Painting should be as per HTM 0201
+Inside Hospital Building observation
+All Floors
+Isolation Valve
+- Position of Isolation vlave should be as per asbuilt drawing.
+- Floor Isolation Valves above ceiling should be indicated (Indication stickers should be fixed on trap door)
+- Trap door should be provided
+Area Alarm
+- Alarm should be fixed properly
+- All wiring should be under condiute or batten
+- Pressure switch connected & should be configured
+- Alarm pressure switch above ceiling should be indicated (Indication stickers should be fixed on trap door/ false ceiling)
+- Naming of Area serve should be indicated.
+Valve Box
+- All Valve Box installed properly.
+- Colour Coading on drops should be proper with arrow stickers
+- Colour Coading on in side valve box before valve should be proper
+- Gap should be closed at false ceiling from where the copper pipe drops coming
+- Flow direction indication stickers fixed
+- Service specific stickers should be fixed properly on the valve box
+- All the Valve Box should be indicated the area and departments they serves
+- Valves installed working properly
+- NIST installed
+- Vacuum NIST cover provided
+- Saddles installed should be fixed firmly
+- Valve Box Height should be as per std.
+- Naming of Area serve should be indicated.
+Outlet Points in side Room
+- Proper flushing done before use.
+- The outlets installed on wall should be fixed with proper covers and probes
+- Down Drops should be straight and proper.
+- Proper gap between copper pipes and other service line/ electric wire with proper sleave.Pipe should be covered with proper sleeves.
+- Color coding should be as per standard with arrow stickers.
+- Cross connection testing must be done
+- Proper signage with flow direction(arrow marking).
+- Leakage check
+Bed Head Panels
+- All Bed Head panels should be firmly fixed and height should be maintained
+- All opening in Bed Head Panel should be covered
+- Down Drops should be straight and proper saddeling done
+- Proper gap between copper pipes and other service line/ electric wire. Pipe should be covered with proper sleeves
+- Color coding should be as per standard, existing sticker on outlet drop pipes should be removed.
+- Cross connection testing should be done
+- Proper signage with flow direction(arrow marking) & color code
+- Leakage check
+- All Accessories installed
+Checked By Signature with Name

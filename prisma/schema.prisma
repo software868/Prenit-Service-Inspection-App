@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ENGINEER
+  ADMIN
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum ChecklistStatus {
+  OK
+  NOT_OK
+  NA
+}
+
+enum AttachmentType {
+  PHOTO
+  AUDIO
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String   @unique
+  role      UserRole @default(ENGINEER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reports ServiceReport[]
+}
+
+model Site {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String       @unique
+  slug        String       @unique
+  description String?
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  departments Department[]
+  reports     ServiceReport[]
+}
+
+model Department {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  siteId    String    @db.ObjectId
+  name      String
+  slug      String
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sections Section[]
+
+  @@unique([siteId, slug])
+}
+
+model Section {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  departmentId String     @db.ObjectId
+  name         String
+  slug         String
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  department Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  locations  Location[]
+  equipment  Equipment[]
+
+  @@unique([departmentId, slug])
+}
+
+model Location {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId String   @db.ObjectId
+  name      String
+  slug      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  equipment Equipment[]
+
+  @@unique([sectionId, slug])
+}
+
+model Equipment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId  String   @db.ObjectId
+  locationId String?  @db.ObjectId
+  name       String
+  slug       String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  section        Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  location       Location?       @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  checklistItems ChecklistItem[]
+
+  @@unique([sectionId, slug, locationId])
+}
+
+model ChecklistItem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  equipmentId String   @db.ObjectId
+  parentId    String?  @db.ObjectId
+  name        String
+  slug        String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  equipment Equipment            @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  responses ChecklistResponse[]
+
+  @@unique([equipmentId, slug])
+}
+
+model ServiceReport {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  reportNumber String       @unique
+  siteId       String       @db.ObjectId
+  departmentId String       @db.ObjectId
+  sectionId    String       @db.ObjectId
+  locationId   String?      @db.ObjectId
+  equipmentId  String       @db.ObjectId
+  engineerId   String?      @db.ObjectId
+  engineerName String
+  status       ReportStatus @default(DRAFT)
+  breadcrumb   String
+  submittedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  site      Site                @relation(fields: [siteId], references: [id])
+  engineer  User?               @relation(fields: [engineerId], references: [id])
+  responses ChecklistResponse[]
+  attachments Attachment[]
+}
+
+model ChecklistResponse {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  reportId        String          @db.ObjectId
+  checklistItemId String?         @db.ObjectId
+  itemName        String
+  status          ChecklistStatus?
+  remarks         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  report        ServiceReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id])
+
+  @@unique([reportId, itemName])
+}
+
+model Attachment {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  reportId        String         @db.ObjectId
+  checklistItemId String?
+  type            AttachmentType
+  fileName        String
+  filePath        String
+  mimeType        String
+  size            Int
+  createdAt       DateTime       @default(now())
+
+  report ServiceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
