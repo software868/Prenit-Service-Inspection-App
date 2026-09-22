@@ -120,7 +120,7 @@ export function PageShell({
         className={cn(
           "mx-auto px-4 py-5",
           wide ? "max-w-6xl" : "max-w-3xl lg:max-w-5xl",
-          padBottom && "pb-28"
+          padBottom && "pb-20"
         )}
       >
         {breadcrumbs && breadcrumbs.length > 0 && (

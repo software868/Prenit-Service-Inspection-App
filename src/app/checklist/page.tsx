@@ -278,26 +278,26 @@ function ChecklistPageContent() {
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex max-w-3xl gap-3 lg:max-w-5xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="mx-auto flex max-w-3xl gap-2 lg:max-w-5xl">
           <Button
             variant="outline"
-            size="lg"
+            size="sm"
             className="flex-1"
             onClick={handleSaveDraft}
             loading={saving}
           >
-            <Save className="h-5 w-5" />
+            <Save className="h-4 w-4" />
             Save Draft
           </Button>
           <Button
             variant="secondary"
-            size="lg"
+            size="sm"
             className="flex-1"
             onClick={handleSubmit}
             loading={submitting}
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-4 w-4" />
             Submit
           </Button>
         </div>

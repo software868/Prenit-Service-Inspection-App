@@ -65,13 +65,12 @@ export interface DraftReport {
 }
 
 export const VOICE_LANGUAGES = [
-  { code: "en-IN", label: "English" },
-  { code: "hi-IN", label: "Hindi" },
-  { code: "en-IN", label: "Hinglish" },
+  { id: "en", code: "en-IN", label: "English" },
+  { id: "hi", code: "hi-IN", label: "Hindi" },
+  { id: "hinglish", code: "en-IN", label: "Hinglish" },
 ] as const;
 
 export const STATUS_OPTIONS: { value: ChecklistStatusValue; label: string; color: string }[] = [
   { value: "OK", label: "OK", color: "bg-emerald-500" },
   { value: "NOT_OK", label: "Not OK", color: "bg-orange-500" },
-  { value: "NA", label: "N.A.", color: "bg-slate-400" },
 ];

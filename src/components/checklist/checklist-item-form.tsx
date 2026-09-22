@@ -53,7 +53,7 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
         <div className="space-y-5 border-t border-slate-100 p-4">
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">Status</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {STATUS_OPTIONS.map((option) => (
                 <button
                   key={option.value}

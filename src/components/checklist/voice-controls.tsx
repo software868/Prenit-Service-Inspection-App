@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { VOICE_LANGUAGES } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Mic, MicOff, Volume2 } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SpeechRecognitionResult {
@@ -40,6 +40,7 @@ interface VoiceControlsProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  compact?: boolean;
 }
 
 function joinRemarks(base: string, spoken: string): string {
@@ -50,9 +51,14 @@ function joinRemarks(base: string, spoken: string): string {
   return `${trimmedBase} ${trimmedSpoken}`;
 }
 
-export function VoiceControls({ value, onChange, className }: VoiceControlsProps) {
+export function VoiceControls({
+  value,
+  onChange,
+  className,
+  compact = false,
+}: VoiceControlsProps) {
   const [isListening, setIsListening] = useState(false);
-  const [language, setLanguage] = useState<string>(VOICE_LANGUAGES[0].code);
+  const [languageId, setLanguageId] = useState<string>(VOICE_LANGUAGES[0].id);
   const [supported, setSupported] = useState(true);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -61,6 +67,9 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
   const isListeningRef = useRef(false);
   const baseTextRef = useRef("");
   const sessionFinalRef = useRef("");
+
+  const selectedLanguage =
+    VOICE_LANGUAGES.find((lang) => lang.id === languageId) || VOICE_LANGUAGES[0];
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -115,8 +124,6 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
         return;
       }
 
-      // Browsers often stop after a short pause even with continuous=true.
-      // Restart while the user has not tapped Stop.
       try {
         recognition.start();
       } catch {
@@ -139,9 +146,9 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
 
   useEffect(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.lang = language;
+      recognitionRef.current.lang = selectedLanguage.code;
     }
-  }, [language]);
+  }, [selectedLanguage.code]);
 
   const stopListening = useCallback(() => {
     isListeningRef.current = false;
@@ -155,7 +162,7 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
 
     baseTextRef.current = valueRef.current;
     sessionFinalRef.current = "";
-    recognition.lang = language;
+    recognition.lang = selectedLanguage.code;
     isListeningRef.current = true;
     setIsListening(true);
 
@@ -165,7 +172,7 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
       isListeningRef.current = false;
       setIsListening(false);
     }
-  }, [language]);
+  }, [selectedLanguage.code]);
 
   const toggleListening = useCallback(() => {
     if (isListeningRef.current) {
@@ -175,50 +182,41 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
     }
   }, [startListening, stopListening]);
 
-  const speakText = useCallback(() => {
-    if (!value.trim() || !window.speechSynthesis) return;
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(value);
-    utterance.lang = language;
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
-  }, [value, language]);
-
   if (!supported) {
     return (
-      <p className="text-sm text-slate-500">
-        Voice features are not supported in this browser. Please type your remarks.
+      <p className="text-xs text-slate-500">
+        Voice not supported — type remarks instead.
       </p>
     );
   }
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap gap-2">
-        {VOICE_LANGUAGES.map((lang) => (
-          <button
-            key={lang.label}
-            type="button"
-            onClick={() => setLanguage(lang.code)}
-            className={cn(
-              "min-h-10 rounded-full px-3 py-2 text-sm font-medium transition-colors",
-              language === lang.code
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            )}
-          >
-            {lang.label}
-          </button>
-        ))}
-      </div>
+    <div className={cn(compact ? "space-y-2" : "space-y-3", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {VOICE_LANGUAGES.map((lang) => (
+            <button
+              key={lang.id}
+              type="button"
+              onClick={() => setLanguageId(lang.id)}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                languageId === lang.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              )}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
 
-      <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant={isListening ? "danger" : "outline"}
           size="sm"
           onClick={toggleListening}
+          className="ml-auto"
         >
           {isListening ? (
             <>
@@ -228,27 +226,16 @@ export function VoiceControls({ value, onChange, className }: VoiceControlsProps
           ) : (
             <>
               <Mic className="h-4 w-4" />
-              Voice to Text
+              Voice
             </>
           )}
-        </Button>
-
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={speakText}
-          disabled={!value.trim()}
-        >
-          <Volume2 className="h-4 w-4" />
-          Read Aloud
         </Button>
       </div>
 
       {isListening && (
-        <p className="flex items-center gap-2 text-sm font-medium text-orange-600">
+        <p className="flex items-center gap-2 text-xs font-medium text-orange-600">
           <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
-          Listening... speak your full sentence, then tap Stop when finished
+          Listening ({selectedLanguage.label})… tap Stop when done
         </p>
       )}
     </div>
