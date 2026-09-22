@@ -1,13 +1,9 @@
 "use client";
 
 import { VoiceControls } from "@/components/checklist/voice-controls";
-import {
-  STATUS_OPTIONS,
-  type ChecklistItemResponse,
-  type ChecklistStatusValue,
-} from "@/lib/types";
+import type { ChecklistItemResponse, ChecklistStatusValue } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { MessageSquarePlus, X } from "lucide-react";
+import { Check, MessageSquarePlus, X } from "lucide-react";
 import { useState } from "react";
 
 interface InlineCheckRowProps {
@@ -16,51 +12,93 @@ interface InlineCheckRowProps {
   onChange: (updates: Partial<ChecklistItemResponse>) => void;
 }
 
+export function StatusLegendHeader() {
+  return (
+    <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur">
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Item
+        </p>
+        <div className="flex shrink-0 items-center gap-2 pr-10">
+          <div className="flex w-10 flex-col items-center gap-0.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white">
+              <Check className="h-4 w-4 stroke-[3]" />
+            </span>
+            <span className="text-[10px] font-semibold text-emerald-700">OK</span>
+          </div>
+          <div className="flex w-10 flex-col items-center gap-0.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-white">
+              <X className="h-4 w-4 stroke-[3]" />
+            </span>
+            <span className="text-[10px] font-semibold text-orange-700">Not OK</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InlineCheckRow({ item, subtitle, onChange }: InlineCheckRowProps) {
   const [showRemark, setShowRemark] = useState(Boolean(item.remarks?.trim()));
 
+  const setStatus = (status: ChecklistStatusValue) => {
+    onChange({ status: item.status === status ? null : status });
+  };
+
   return (
-    <div className="border-b border-slate-200 bg-white px-3 py-2.5 last:border-b-0">
+    <div className="border-b border-slate-200 bg-white px-3 py-2 last:border-b-0">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
+          <p className="truncate text-sm font-medium text-slate-900">{item.name}</p>
           {subtitle ? (
             <p className="truncate text-xs text-slate-500">{subtitle}</p>
           ) : null}
         </div>
 
-        <div className="flex shrink-0 gap-1">
-          {STATUS_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onChange({ status: option.value as ChecklistStatusValue })}
-              className={cn(
-                "min-h-9 min-w-[2.75rem] rounded-lg border px-2 text-xs font-bold transition-all sm:min-w-[3.25rem]",
-                item.status === option.value
-                  ? `${option.color} border-transparent text-white`
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setStatus("OK")}
+            aria-label="OK"
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-lg border-2 transition-all",
+              item.status === "OK"
+                ? "border-emerald-500 bg-emerald-500 text-white"
+                : "border-slate-200 bg-white text-slate-300 hover:border-emerald-300 hover:text-emerald-500"
+            )}
+          >
+            <Check className="h-5 w-5 stroke-[2.5]" />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setShowRemark((open) => !open)}
-          className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-lg p-2 transition-colors",
-            showRemark || item.remarks?.trim()
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
-          )}
-          title="Add remark"
-          aria-label="Add remark"
-        >
-          {showRemark ? <X className="h-4 w-4" /> : <MessageSquarePlus className="h-4 w-4" />}
-        </button>
+          <button
+            type="button"
+            onClick={() => setStatus("NOT_OK")}
+            aria-label="Not OK"
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-lg border-2 transition-all",
+              item.status === "NOT_OK"
+                ? "border-orange-500 bg-orange-500 text-white"
+                : "border-slate-200 bg-white text-slate-300 hover:border-orange-300 hover:text-orange-500"
+            )}
+          >
+            <X className="h-5 w-5 stroke-[2.5]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowRemark((open) => !open)}
+            className={cn(
+              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+              showRemark || item.remarks?.trim()
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
+            )}
+            title="Add remark"
+            aria-label="Add remark"
+          >
+            {showRemark ? <X className="h-4 w-4" /> : <MessageSquarePlus className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       {showRemark ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { InlineCheckRow } from "@/components/checklist/inline-check-row";
+import { InlineCheckRow, StatusLegendHeader } from "@/components/checklist/inline-check-row";
 import { PageShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -350,9 +350,9 @@ export default function LocationPage() {
         current: location?.name || "Location",
       })}
       title={`${location?.name || "OT"} Inspection`}
-      subtitle="Mark OK / Not OK — add remark only if needed"
+      subtitle="Tap ✓ or ✕ for each item — add remark only if needed"
     >
-      <div className="mb-6 space-y-4">
+      <div className="mb-4 space-y-3">
         <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
           <Input
             label="Engineer Name"
@@ -370,6 +370,8 @@ export default function LocationPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <StatusLegendHeader />
+
         {groups.map((group) => {
           const showGroupHeader = group.items.length > 1;
 
