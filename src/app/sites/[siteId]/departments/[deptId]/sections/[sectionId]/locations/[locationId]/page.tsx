@@ -3,7 +3,6 @@
 import { InlineCheckRow, StatusLegendHeader } from "@/components/checklist/inline-check-row";
 import { PageShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import {
   findDepartment,
@@ -12,6 +11,7 @@ import {
   findSite,
   useHierarchy,
 } from "@/hooks/use-hierarchy";
+import { useAuth } from "@/hooks/use-auth";
 import { getInspectionBreadcrumb, getNavBreadcrumbs } from "@/lib/extra-sites";
 import { mergeNamedCatalog } from "@/lib/hierarchy-utils";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
@@ -21,13 +21,27 @@ import { slugify } from "@/lib/utils";
 import { useInspectionStore } from "@/store/inspection-store";
 import { Save, Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type EquipmentGroup = {
   equipmentId: string;
   equipmentName: string;
   items: ChecklistItemResponse[];
 };
+
+function isMarked(status: ChecklistItemResponse["status"]) {
+  return status === "OK" || status === "NOT_OK";
+}
+
+function scrollToChecklistItem(checklistItemId: string) {
+  const el = document.getElementById(`check-item-${checklistItemId}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("ring-2", "ring-orange-400", "ring-offset-2");
+  window.setTimeout(() => {
+    el.classList.remove("ring-2", "ring-orange-400", "ring-offset-2");
+  }, 1800);
+}
 
 export default function LocationPage() {
   const params = useParams();
@@ -37,9 +51,8 @@ export default function LocationPage() {
   const sectionId = params.sectionId as string;
   const locationId = params.locationId as string;
   const { data } = useHierarchy();
+  const { user } = useAuth();
   const {
-    engineerName: storeEngineerName,
-    setEngineerName,
     currentDraft,
     setCurrentDraft,
     setSelection,
@@ -51,12 +64,13 @@ export default function LocationPage() {
   const section = findSection(data, siteId, deptId, sectionId);
   const location = findLocation(data, siteId, deptId, sectionId, locationId);
 
-  const [localEngineerName, setLocalEngineerName] = useState(storeEngineerName);
   const [responses, setResponses] = useState<ChecklistItemResponse[]>([]);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [reportId, setReportId] = useState<string | undefined>();
+  const [highlightIncomplete, setHighlightIncomplete] = useState(false);
+  const initializedLocationRef = useRef<string | null>(null);
 
   const otEquipment = useMemo(() => {
     const equipment =
@@ -152,43 +166,69 @@ export default function LocationPage() {
     });
   }, [checklistItems, site?.name, site?.slug]);
 
-  useEffect(() => {
-    if (storeEngineerName && !localEngineerName) {
-      setLocalEngineerName(storeEngineerName);
-    }
-  }, [storeEngineerName, localEngineerName]);
-
+  // preserve already marked answers so Submit enable state is not wiped.
   useEffect(() => {
     if (!otEquipment || groups.length === 0) {
       setResponses([]);
+      initializedLocationRef.current = null;
       return;
     }
 
-    let items = groups.flatMap((group) => group.items);
+    const locationKey = `${locationId}:${otEquipment.id}:${groups.length}`;
+    const templateItems = groups.flatMap((group) => group.items);
 
-    if (currentDraft?.responses?.length) {
-      const draftMatchesLocation =
-        currentDraft.path.locationId === locationId ||
-        currentDraft.path.equipmentId === otEquipment.id;
+    setResponses((prev) => {
+      const shouldReset =
+        initializedLocationRef.current !== locationKey || prev.length === 0;
 
-      if (draftMatchesLocation) {
-        items = items.map((item) => {
-          const saved = currentDraft.responses.find(
-            (r) => r.checklistItemId === item.checklistItemId || r.name === item.name
-          );
-          return saved ? { ...item, ...saved, name: item.name } : item;
-        });
-        setReportId(currentDraft.id);
-      }
+      initializedLocationRef.current = locationKey;
+
+      return templateItems.map((item) => {
+        const existing = prev.find(
+          (r) => r.checklistItemId === item.checklistItemId || r.name === item.name
+        );
+        const fromDraft =
+          currentDraft?.responses?.length &&
+          (currentDraft.path.locationId === locationId ||
+            currentDraft.path.equipmentId === otEquipment.id)
+            ? currentDraft.responses.find(
+                (r) =>
+                  r.checklistItemId === item.checklistItemId || r.name === item.name
+              )
+            : undefined;
+
+        if (!shouldReset && existing) {
+          return {
+            ...item,
+            status: existing.status,
+            remarks: existing.remarks,
+            photoData: existing.photoData,
+            audioData: existing.audioData,
+            photoFileName: existing.photoFileName,
+            audioFileName: existing.audioFileName,
+          };
+        }
+
+        if (fromDraft) {
+          return { ...item, ...fromDraft, name: item.name };
+        }
+
+        return item;
+      });
+    });
+
+    if (
+      currentDraft?.id &&
+      (currentDraft.path.locationId === locationId ||
+        currentDraft.path.equipmentId === otEquipment.id)
+    ) {
+      setReportId(currentDraft.id);
     }
-
-    setResponses(items);
   }, [groups, otEquipment, currentDraft, locationId]);
 
   useEffect(() => {
     if (!selection.equipmentId || !breadcrumb) return;
     setSelection(selection, breadcrumb);
-    // Only sync when location / equipment identity changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selection.siteId,
@@ -200,10 +240,13 @@ export default function LocationPage() {
     setSelection,
   ]);
 
-  const activeEngineerName = localEngineerName.trim() || storeEngineerName.trim();
-  const completedCount = responses.filter((r) => r.status !== null).length;
+  const activeEngineerName = user?.name?.trim() || "";
+  const completedCount = responses.filter((r) => isMarked(r.status)).length;
+  const incompleteItems = responses.filter((r) => !isMarked(r.status));
+  const incompleteCount = incompleteItems.length;
 
   const updateResponse = (checklistItemId: string, updates: Partial<ChecklistItemResponse>) => {
+    setHighlightIncomplete(false);
     setResponses((prev) =>
       prev.map((item) =>
         item.checklistItemId === checklistItemId ? { ...item, ...updates } : item
@@ -234,7 +277,7 @@ export default function LocationPage() {
 
   const handleSaveDraft = async () => {
     if (!activeEngineerName) {
-      setMessage("Please enter your engineer name before saving.");
+      setMessage("Please login again. Your name could not be loaded.");
       return;
     }
     if (!selection.equipmentId) {
@@ -242,7 +285,6 @@ export default function LocationPage() {
       return;
     }
 
-    setEngineerName(activeEngineerName);
     setSaving(true);
     setMessage("");
 
@@ -284,7 +326,7 @@ export default function LocationPage() {
 
   const handleSubmit = async () => {
     if (!activeEngineerName) {
-      setMessage("Please enter your engineer name before submitting.");
+      setMessage("Please login again. Your name could not be loaded.");
       return;
     }
     if (!selection.equipmentId) {
@@ -292,15 +334,19 @@ export default function LocationPage() {
       return;
     }
 
-    const incomplete = responses.filter((r) => r.status === null);
+    const incomplete = responses.filter((r) => !isMarked(r.status));
     if (incomplete.length > 0) {
-      setMessage(`Please complete all items. ${incomplete.length} remaining.`);
+      setHighlightIncomplete(true);
+      setMessage(
+        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Photo and remark are optional.`
+      );
+      scrollToChecklistItem(incomplete[0].checklistItemId);
       return;
     }
 
-    setEngineerName(activeEngineerName);
     setSubmitting(true);
     setMessage("");
+    setHighlightIncomplete(false);
 
     try {
       if (isOnline()) {
@@ -310,7 +356,10 @@ export default function LocationPage() {
           body: JSON.stringify(buildPayload("SUBMITTED")),
         });
 
-        if (!res.ok) throw new Error("Submit failed");
+        if (!res.ok) {
+          const failed = await res.json().catch(() => ({}));
+          throw new Error(failed.error || "Submit failed");
+        }
 
         const saved = await res.json();
         setReportId(saved.id);
@@ -324,8 +373,8 @@ export default function LocationPage() {
         });
         setMessage("Saved offline. Will sync when back online.");
       }
-    } catch {
-      setMessage("Failed to submit. Try saving as draft.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to submit. Try saving as draft.");
     } finally {
       setSubmitting(false);
     }
@@ -350,18 +399,13 @@ export default function LocationPage() {
         current: location?.name || "Location",
       })}
       title={`${location?.name || "OT"} Inspection`}
-      subtitle="Tap ✓ or ✕ for each item — add remark only if needed"
+      subtitle={
+        user?.name
+          ? `Inspector: ${user.name} — tap ✓ or ✕ for each item`
+          : "Tap ✓ or ✕ for each item — add remark only if needed"
+      }
     >
-      <div className="mb-4 space-y-3">
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-          <Input
-            label="Engineer Name"
-            placeholder="Enter your name"
-            value={localEngineerName}
-            onChange={(e) => setLocalEngineerName(e.target.value)}
-          />
-        </div>
-
+      <div className="mb-4">
         <ProgressBar
           current={completedCount}
           total={responses.length}
@@ -391,6 +435,7 @@ export default function LocationPage() {
                   <InlineCheckRow
                     key={item.checklistItemId}
                     item={item}
+                    highlightMissing={highlightIncomplete && !isMarked(item.status)}
                     onChange={(updates) => updateResponse(item.checklistItemId, updates)}
                   />
                 );
@@ -399,6 +444,12 @@ export default function LocationPage() {
           );
         })}
       </div>
+
+      {incompleteCount > 0 && (
+        <p className="mt-3 text-center text-sm font-medium text-orange-600">
+          {incompleteCount} item{incompleteCount === 1 ? "" : "s"} still unmarked
+        </p>
+      )}
 
       {message && (
         <div

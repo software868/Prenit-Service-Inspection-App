@@ -1,9 +1,27 @@
+import { uploadInspectionImage } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
 import { generateReportNumber } from "@/lib/utils";
 import type { ChecklistItemResponse } from "@/lib/types";
-import { AttachmentType, ChecklistStatus, ReportStatus } from "@prisma/client";
+import { AttachmentType, ReportStatus } from "@prisma/client";
+import { randomBytes } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+
+function newObjectId() {
+  return randomBytes(12).toString("hex");
+}
+
+function oid(id: string) {
+  return { $oid: id };
+}
+
+function mongoDate(date = new Date()) {
+  return { $date: date.toISOString() };
+}
+
+async function rawCommand(command: Record<string, unknown>) {
+  await prisma.$runCommandRaw(command);
+}
 
 interface SaveReportInput {
   id?: string;
@@ -20,6 +38,7 @@ interface SaveReportInput {
   locationSlug?: string;
   locationName?: string;
   equipmentId: string;
+  engineerId?: string;
   engineerName: string;
   breadcrumb: string;
   status: "DRAFT" | "SUBMITTED";
@@ -37,106 +56,167 @@ function slugify(text: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+async function ensureSite(name: string, slug: string) {
+  const existing =
+    (await prisma.site.findFirst({ where: { slug } })) ||
+    (await prisma.site.findFirst({ where: { name } }));
+  if (existing) return existing;
+
+  const id = newObjectId();
+  const now = mongoDate();
+  await rawCommand({
+    insert: "Site",
+    documents: [{ _id: oid(id), name, slug, order: 0, createdAt: now, updatedAt: now }],
+  });
+  const created = await prisma.site.findUnique({ where: { id } });
+  if (!created) throw new Error("Could not save site");
+  return created;
+}
+
+async function ensureDepartment(siteId: string, name: string, slug: string) {
+  const existing = await prisma.department.findFirst({
+    where: { siteId, OR: [{ slug }, { name }] },
+  });
+  if (existing) return existing;
+
+  const id = newObjectId();
+  const now = mongoDate();
+  await rawCommand({
+    insert: "Department",
+    documents: [
+      {
+        _id: oid(id),
+        siteId: oid(siteId),
+        name,
+        slug,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  });
+  const created = await prisma.department.findUnique({ where: { id } });
+  if (!created) throw new Error("Could not save department");
+  return created;
+}
+
+async function ensureSection(departmentId: string, name: string, slug: string) {
+  const existing = await prisma.section.findFirst({
+    where: { departmentId, OR: [{ slug }, { name }] },
+  });
+  if (existing) return existing;
+
+  const id = newObjectId();
+  const now = mongoDate();
+  await rawCommand({
+    insert: "Section",
+    documents: [
+      {
+        _id: oid(id),
+        departmentId: oid(departmentId),
+        name,
+        slug,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  });
+  const created = await prisma.section.findUnique({ where: { id } });
+  if (!created) throw new Error("Could not save section");
+  return created;
+}
+
+async function ensureLocation(sectionId: string, name: string, slug: string) {
+  const existing = await prisma.location.findFirst({
+    where: { sectionId, OR: [{ slug }, { name }] },
+  });
+  if (existing) return existing;
+
+  const id = newObjectId();
+  const now = mongoDate();
+  await rawCommand({
+    insert: "Location",
+    documents: [
+      {
+        _id: oid(id),
+        sectionId: oid(sectionId),
+        name,
+        slug,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  });
+  const created = await prisma.location.findUnique({ where: { id } });
+  if (!created) throw new Error("Could not save location");
+  return created;
+}
+
+async function ensureEquipment(
+  sectionId: string,
+  locationId: string | null,
+  name: string,
+  slug: string
+) {
+  const existing = await prisma.equipment.findFirst({
+    where: { sectionId, locationId, slug },
+  });
+  if (existing) return existing;
+
+  const id = newObjectId();
+  const now = mongoDate();
+  await rawCommand({
+    insert: "Equipment",
+    documents: [
+      {
+        _id: oid(id),
+        sectionId: oid(sectionId),
+        locationId: locationId ? oid(locationId) : null,
+        name,
+        slug,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  });
+  const created = await prisma.equipment.findUnique({ where: { id } });
+  if (!created) throw new Error("Could not save equipment");
+  return created;
+}
+
 async function resolveInspectionIds(input: SaveReportInput) {
-  const site =
-    (input.siteSlug
-      ? await prisma.site.findFirst({ where: { slug: input.siteSlug } })
-      : null) ||
-    (isMongoObjectId(input.siteId)
-      ? await prisma.site.findUnique({ where: { id: input.siteId } })
-      : null) ||
-    (input.siteName
-      ? await prisma.site.findFirst({ where: { name: input.siteName } })
-      : null);
+  const siteName = input.siteName?.trim() || "Site";
+  const siteSlug = input.siteSlug?.trim() || slugify(siteName);
+  const site = await ensureSite(siteName, siteSlug);
 
-  if (!site) {
-    throw new Error("Site not found for this inspection");
-  }
+  const departmentName = input.departmentName?.trim() || "Department";
+  const departmentSlug = input.departmentSlug?.trim() || slugify(departmentName);
+  const department = await ensureDepartment(site.id, departmentName, departmentSlug);
 
-  const department =
-    (input.departmentSlug
-      ? await prisma.department.findFirst({
-          where: { siteId: site.id, slug: input.departmentSlug },
-        })
-      : null) ||
-    (isMongoObjectId(input.departmentId)
-      ? await prisma.department.findFirst({
-          where: { id: input.departmentId, siteId: site.id },
-        })
-      : null) ||
-    (input.departmentName
-      ? await prisma.department.findFirst({
-          where: { siteId: site.id, name: input.departmentName },
-        })
-      : null);
+  const sectionName = input.sectionName?.trim() || "Section";
+  const sectionSlug = input.sectionSlug?.trim() || slugify(sectionName);
+  const section = await ensureSection(department.id, sectionName, sectionSlug);
 
-  if (!department) {
-    throw new Error("Department not found for this inspection");
-  }
-
-  const section =
-    (input.sectionSlug
-      ? await prisma.section.findFirst({
-          where: { departmentId: department.id, slug: input.sectionSlug },
-        })
-      : null) ||
-    (isMongoObjectId(input.sectionId)
-      ? await prisma.section.findFirst({
-          where: { id: input.sectionId, departmentId: department.id },
-        })
-      : null) ||
-    (input.sectionName
-      ? await prisma.section.findFirst({
-          where: { departmentId: department.id, name: input.sectionName },
-        })
-      : null);
-
-  if (!section) {
-    throw new Error("Section not found for this inspection");
-  }
-
-  const wantsLocation = Boolean(input.locationSlug || input.locationName || input.locationId);
+  const wantsLocation = Boolean(input.locationName || input.locationSlug);
   const location = wantsLocation
-    ? (input.locationSlug
-        ? await prisma.location.findFirst({
-            where: { sectionId: section.id, slug: input.locationSlug },
-          })
-        : null) ||
-      (isMongoObjectId(input.locationId)
-        ? await prisma.location.findFirst({
-            where: { id: input.locationId, sectionId: section.id },
-          })
-        : null) ||
-      (input.locationName
-        ? await prisma.location.findFirst({
-            where: {
-              sectionId: section.id,
-              OR: [
-                { name: input.locationName },
-                { slug: { endsWith: slugify(input.locationName) } },
-              ],
-            },
-          })
-        : null)
+    ? await ensureLocation(
+        section.id,
+        input.locationName?.trim() || "Location",
+        input.locationSlug?.trim() || slugify(input.locationName || "location")
+      )
     : null;
 
-  if (wantsLocation && !location) {
-    throw new Error("Location not found for this inspection");
-  }
-
-  const equipment = location
-    ? await prisma.equipment.findFirst({
-        where: { sectionId: section.id, locationId: location.id },
-        orderBy: { order: "asc" },
-      })
-    : await prisma.equipment.findFirst({
-        where: { sectionId: section.id, locationId: null },
-        orderBy: { order: "asc" },
-      });
-
-  if (!equipment) {
-    throw new Error("Equipment not found for this inspection");
-  }
+  const equipmentName = "Inspection";
+  const equipmentSlug = location ? `inspection-${location.slug}` : "inspection";
+  const equipment = await ensureEquipment(
+    section.id,
+    location?.id ?? null,
+    equipmentName,
+    equipmentSlug
+  );
 
   return {
     siteId: site.id,
@@ -152,30 +232,57 @@ async function saveAttachment(
   checklistItemId: string | null,
   type: AttachmentType,
   dataUrl: string,
-  fileName: string
+  fileName: string,
+  itemName = ""
 ) {
-  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) return;
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
+  const storedName =
+    type === AttachmentType.PHOTO && itemName ? `${itemName}::${safeName}` : safeName;
 
-  const mimeType = matches[1];
-  const buffer = Buffer.from(matches[2], "base64");
-  const uploadDir = path.join(process.cwd(), "public", "uploads", reportId);
-  await mkdir(uploadDir, { recursive: true });
+  let filePath = "";
+  let mimeType = "application/octet-stream";
+  let size = 0;
 
-  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const filePath = `/uploads/${reportId}/${safeName}`;
-  await writeFile(path.join(process.cwd(), "public", "uploads", reportId, safeName), buffer);
+  if (type === AttachmentType.PHOTO && /^https?:\/\//i.test(dataUrl)) {
+    filePath = dataUrl;
+    mimeType = "image/jpeg";
+  } else {
+    const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return;
 
-  await prisma.attachment.create({
-    data: {
-      reportId,
-      checklistItemId: checklistItemId || undefined,
-      type,
-      fileName: safeName,
-      filePath,
-      mimeType,
-      size: buffer.length,
-    },
+    mimeType = matches[1];
+    const buffer = Buffer.from(matches[2], "base64");
+    size = buffer.length;
+
+    if (type === AttachmentType.PHOTO) {
+      const uploaded = await uploadInspectionImage(buffer);
+      filePath = uploaded.secure_url;
+    } else {
+      const uploadDir = path.join(process.cwd(), "public", "uploads", reportId);
+      await mkdir(uploadDir, { recursive: true });
+      filePath = `/uploads/${reportId}/${safeName}`;
+      await writeFile(
+        path.join(process.cwd(), "public", "uploads", reportId, safeName),
+        buffer
+      );
+    }
+  }
+
+  await rawCommand({
+    insert: "Attachment",
+    documents: [
+      {
+        _id: oid(newObjectId()),
+        reportId: oid(reportId),
+        checklistItemId: checklistItemId || null,
+        type,
+        fileName: storedName,
+        filePath,
+        mimeType,
+        size,
+        createdAt: mongoDate(),
+      },
+    ],
   });
 }
 
@@ -191,48 +298,80 @@ export async function saveServiceReport(input: SaveReportInput) {
     sectionId: ids.sectionId,
     locationId: ids.locationId,
     equipmentId: ids.equipmentId,
+    engineerId: isMongoObjectId(input.engineerId) ? input.engineerId : undefined,
     engineerName: input.engineerName,
     breadcrumb: input.breadcrumb,
     status,
     submittedAt: status === ReportStatus.SUBMITTED ? new Date() : null,
   };
 
-  let report;
+  const now = mongoDate();
   const existingId = isMongoObjectId(input.id) ? input.id : undefined;
+  let reportId = existingId;
+
+  const reportDoc = {
+    siteId: oid(reportData.siteId),
+    departmentId: oid(reportData.departmentId),
+    sectionId: oid(reportData.sectionId),
+    locationId: reportData.locationId ? oid(reportData.locationId) : null,
+    equipmentId: oid(reportData.equipmentId),
+    engineerId: reportData.engineerId ? oid(reportData.engineerId) : null,
+    engineerName: reportData.engineerName,
+    breadcrumb: reportData.breadcrumb,
+    status: reportData.status,
+    submittedAt: reportData.submittedAt ? mongoDate(reportData.submittedAt) : null,
+    updatedAt: now,
+  };
 
   if (existingId) {
-    report = await prisma.serviceReport.update({
-      where: { id: existingId },
-      data: reportData,
+    await rawCommand({
+      update: "ServiceReport",
+      updates: [{ q: { _id: oid(existingId) }, u: { $set: reportDoc } }],
     });
-
-    await prisma.checklistResponse.deleteMany({ where: { reportId: report.id } });
-    await prisma.attachment.deleteMany({ where: { reportId: report.id } });
+    await rawCommand({
+      delete: "ChecklistResponse",
+      deletes: [{ q: { reportId: oid(existingId) }, limit: 0 }],
+    });
+    await rawCommand({
+      delete: "Attachment",
+      deletes: [{ q: { reportId: oid(existingId) }, limit: 0 }],
+    });
   } else {
-    report = await prisma.serviceReport.create({
-      data: {
-        ...reportData,
-        reportNumber: generateReportNumber(),
-      },
+    reportId = newObjectId();
+    await rawCommand({
+      insert: "ServiceReport",
+      documents: [
+        {
+          _id: oid(reportId),
+          ...reportDoc,
+          reportNumber: generateReportNumber(),
+          createdAt: now,
+        },
+      ],
     });
   }
 
+  const report = { id: reportId! };
+
   for (const response of input.responses) {
-    const checklistItemId =
-      response.checklistItemId && /^[a-f0-9]{24}$/i.test(response.checklistItemId)
-        ? response.checklistItemId
+    const statusValue =
+      response.status === "OK" || response.status === "NOT_OK" || response.status === "NA"
+        ? response.status
         : null;
 
-    await prisma.checklistResponse.create({
-      data: {
-        reportId: report.id,
-        checklistItemId,
-        itemName: response.name,
-        status: response.status
-          ? (response.status as ChecklistStatus)
-          : null,
-        remarks: response.remarks || null,
-      },
+    await rawCommand({
+      insert: "ChecklistResponse",
+      documents: [
+        {
+          _id: oid(newObjectId()),
+          reportId: oid(report.id),
+          itemName: response.name,
+          status: statusValue,
+          remarks: response.remarks || null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
     });
 
     if (response.photoData) {
@@ -241,7 +380,8 @@ export async function saveServiceReport(input: SaveReportInput) {
         response.checklistItemId,
         AttachmentType.PHOTO,
         response.photoData,
-        response.photoFileName || `photo-${response.checklistItemId}.jpg`
+        response.photoFileName || `photo-${response.checklistItemId}.jpg`,
+        response.name
       );
     }
 
@@ -288,10 +428,16 @@ export async function getReports(filters?: {
 
   return prisma.serviceReport.findMany({
     where,
-    include: {
-      site: true,
-      responses: { include: { checklistItem: true } },
-      attachments: true,
+    select: {
+      id: true,
+      reportNumber: true,
+      breadcrumb: true,
+      engineerName: true,
+      status: true,
+      createdAt: true,
+      submittedAt: true,
+      site: { select: { id: true, name: true } },
+      responses: { select: { status: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -301,12 +447,20 @@ export async function getReportById(id: string) {
   return prisma.serviceReport.findUnique({
     where: { id },
     include: {
-      site: true,
+      site: { select: { id: true, name: true } },
+      attachments: {
+        select: { type: true, fileName: true, filePath: true },
+      },
       responses: {
-        include: { checklistItem: true },
+        select: {
+          id: true,
+          status: true,
+          remarks: true,
+          itemName: true,
+          checklistItem: { select: { name: true, order: true } },
+        },
         orderBy: { checklistItem: { order: "asc" } },
       },
-      attachments: true,
     },
   });
 }

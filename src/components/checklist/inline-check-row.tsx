@@ -1,14 +1,16 @@
 "use client";
 
+import { PhotoUpload } from "@/components/checklist/photo-upload";
 import { VoiceControls } from "@/components/checklist/voice-controls";
 import type { ChecklistItemResponse, ChecklistStatusValue } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, MessageSquarePlus, X } from "lucide-react";
+import { Check, ImagePlus, MessageSquarePlus, X } from "lucide-react";
 import { useState } from "react";
 
 interface InlineCheckRowProps {
   item: ChecklistItemResponse;
   subtitle?: string;
+  highlightMissing?: boolean;
   onChange: (updates: Partial<ChecklistItemResponse>) => void;
 }
 
@@ -19,7 +21,7 @@ export function StatusLegendHeader() {
         <p className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-slate-500">
           Item
         </p>
-        <div className="flex shrink-0 items-center gap-2 pr-10">
+        <div className="flex shrink-0 items-center gap-2 pr-24">
           <div className="flex w-10 flex-col items-center gap-0.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white">
               <Check className="h-4 w-4 stroke-[3]" />
@@ -38,15 +40,29 @@ export function StatusLegendHeader() {
   );
 }
 
-export function InlineCheckRow({ item, subtitle, onChange }: InlineCheckRowProps) {
+export function InlineCheckRow({
+  item,
+  subtitle,
+  highlightMissing = false,
+  onChange,
+}: InlineCheckRowProps) {
   const [showRemark, setShowRemark] = useState(Boolean(item.remarks?.trim()));
+  const [showPhoto, setShowPhoto] = useState(Boolean(item.photoData));
 
   const setStatus = (status: ChecklistStatusValue) => {
-    onChange({ status: item.status === status ? null : status });
+    // Always set the chosen status (do not toggle off — keeps Submit enable correct)
+    onChange({ status });
   };
 
   return (
-    <div className="border-b border-slate-200 bg-white px-3 py-2 last:border-b-0">
+    <div
+      id={`check-item-${item.checklistItemId}`}
+      className={cn(
+        "scroll-mt-28 border-b border-slate-200 bg-white px-3 py-2 last:border-b-0 transition-shadow",
+        item.status == null && "bg-orange-50/40",
+        highlightMissing && "bg-orange-100 ring-2 ring-orange-400 ring-inset"
+      )}
+    >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-slate-900">{item.name}</p>
@@ -86,6 +102,21 @@ export function InlineCheckRow({ item, subtitle, onChange }: InlineCheckRowProps
 
           <button
             type="button"
+            onClick={() => setShowPhoto((open) => !open)}
+            className={cn(
+              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+              showPhoto || item.photoData
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
+            )}
+            title="Add photo (optional)"
+            aria-label="Add photo (optional)"
+          >
+            <ImagePlus className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowRemark((open) => !open)}
             className={cn(
               "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
@@ -93,13 +124,23 @@ export function InlineCheckRow({ item, subtitle, onChange }: InlineCheckRowProps
                 ? "bg-blue-50 text-blue-600"
                 : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
             )}
-            title="Add remark"
-            aria-label="Add remark"
+            title="Add remark (optional)"
+            aria-label="Add remark (optional)"
           >
             {showRemark ? <X className="h-4 w-4" /> : <MessageSquarePlus className="h-4 w-4" />}
           </button>
         </div>
       </div>
+
+      {showPhoto ? (
+        <div className="mt-2 border-t border-slate-100 pt-2">
+          <PhotoUpload
+            value={item.photoData}
+            fileName={item.photoFileName}
+            onChange={(photoData, photoFileName) => onChange({ photoData, photoFileName })}
+          />
+        </div>
+      ) : null}
 
       {showRemark ? (
         <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
@@ -107,7 +148,7 @@ export function InlineCheckRow({ item, subtitle, onChange }: InlineCheckRowProps
             value={item.remarks}
             onChange={(e) => onChange({ remarks: e.target.value })}
             rows={2}
-            placeholder="Add remark..."
+            placeholder="Optional remark..."
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
           <VoiceControls

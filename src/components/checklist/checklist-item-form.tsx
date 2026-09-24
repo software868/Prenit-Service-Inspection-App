@@ -18,7 +18,10 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div
+      id={`check-item-${item.checklistItemId}`}
+      className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -73,12 +76,14 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Remarks</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Remarks <span className="font-normal text-slate-400">(optional)</span>
+            </label>
             <textarea
               value={item.remarks}
               onChange={(e) => onChange(index, { remarks: e.target.value })}
               rows={3}
-              placeholder="Add inspection remarks..."
+              placeholder="Optional remark..."
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <VoiceControls
@@ -89,7 +94,9 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Photo</p>
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Photo <span className="font-normal text-slate-400">(optional)</span>
+            </p>
             <PhotoUpload
               value={item.photoData}
               fileName={item.photoFileName}

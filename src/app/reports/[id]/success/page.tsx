@@ -1,8 +1,9 @@
 "use client";
 
 import { PageShell } from "@/components/layout/app-shell";
+import { PdfDownloadButton } from "@/components/reports/pdf-download-button";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, FileDown, Home } from "lucide-react";
+import { CheckCircle2, Home } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -23,12 +24,7 @@ export default function SuccessPage() {
         </p>
 
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-          <a href={`/api/reports/${id}/pdf`} download>
-            <Button variant="secondary" size="lg" className="w-full">
-              <FileDown className="h-5 w-5" />
-              Download PDF
-            </Button>
-          </a>
+          <PdfDownloadButton reportId={id} size="lg" className="w-full [&_button]:w-full" />
           <Link href="/">
             <Button variant="outline" size="lg" className="w-full">
               <Home className="h-5 w-5" />

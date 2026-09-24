@@ -4,12 +4,14 @@ import { PageShell } from "@/components/layout/app-shell";
 import { SelectionCard } from "@/components/ui/selection-card";
 import { useHierarchy } from "@/hooks/use-hierarchy";
 import { getSiteHomeSubtitle } from "@/lib/extra-sites";
+import { useAuth } from "@/hooks/use-auth";
 import { Building2, Search, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export default function HomePage() {
   const { data, offline } = useHierarchy();
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
 
   const sites = useMemo(() => {
@@ -70,16 +72,18 @@ export default function HomePage() {
       <div className="mt-8 grid grid-cols-2 gap-3 md:hidden">
         <Link
           href="/drafts"
-          className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-semibold text-blue-700"
+          className="col-span-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-semibold text-blue-700"
         >
           View Drafts
         </Link>
-        <Link
-          href="/admin"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700"
-        >
-          Admin Dashboard
-        </Link>
+        {user?.role === "ADMIN" && (
+          <Link
+            href="/admin"
+            className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700"
+          >
+            Admin Dashboard
+          </Link>
+        )}
       </div>
     </PageShell>
   );

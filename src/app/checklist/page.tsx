@@ -3,9 +3,9 @@
 import { ChecklistItemForm } from "@/components/checklist/checklist-item-form";
 import { PageShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { hasValidSelection, parseChecklistParams, buildBreadcrumbNavItems } from "@/lib/checklist-navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import { resolveChecklistItems } from "@/lib/resolve-checklist-items";
 import type { ChecklistItemResponse, SelectionPath } from "@/lib/types";
@@ -14,12 +14,25 @@ import { Loader2, Save, Send } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
 
+function isMarked(status: ChecklistItemResponse["status"]) {
+  return status === "OK" || status === "NOT_OK";
+}
+
+function scrollToChecklistItem(checklistItemId: string) {
+  const el = document.getElementById(`check-item-${checklistItemId}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("ring-2", "ring-orange-400", "ring-offset-2");
+  window.setTimeout(() => {
+    el.classList.remove("ring-2", "ring-orange-400", "ring-offset-2");
+  }, 1800);
+}
+
 function ChecklistPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const {
-    engineerName: storeEngineerName,
-    setEngineerName,
     currentDraft,
     setCurrentDraft,
     setSelection,
@@ -33,8 +46,6 @@ function ChecklistPageContent() {
 
   const selection: SelectionPath | null = urlData?.selection ?? null;
   const breadcrumb = urlData?.breadcrumb ?? "";
-  const engineerName = urlData?.engineerName || storeEngineerName;
-  const [localEngineerName, setLocalEngineerName] = useState(engineerName);
 
   const [responses, setResponses] = useState<ChecklistItemResponse[]>([]);
   const [saving, setSaving] = useState(false);
@@ -45,18 +56,8 @@ function ChecklistPageContent() {
   useEffect(() => {
     if (urlData) {
       setSelection(urlData.selection, urlData.breadcrumb);
-      if (urlData.engineerName) {
-        setEngineerName(urlData.engineerName);
-        setLocalEngineerName(urlData.engineerName);
-      }
     }
-  }, [urlData, setSelection, setEngineerName]);
-
-  useEffect(() => {
-    if (storeEngineerName && !localEngineerName) {
-      setLocalEngineerName(storeEngineerName);
-    }
-  }, [storeEngineerName, localEngineerName]);
+  }, [urlData, setSelection]);
 
   useEffect(() => {
     if (!urlData || !hasValidSelection(urlData.selection)) {
@@ -77,8 +78,9 @@ function ChecklistPageContent() {
     setResponses(items);
   }, [urlData, currentDraft]);
 
-  const activeEngineerName = localEngineerName.trim() || engineerName.trim();
-  const completedCount = responses.filter((r) => r.status !== null).length;
+  const activeEngineerName = user?.name?.trim() || "";
+  const completedCount = responses.filter((r) => isMarked(r.status)).length;
+  const incompleteCount = responses.filter((r) => !isMarked(r.status)).length;
 
   const updateResponse = (index: number, updates: Partial<ChecklistItemResponse>) => {
     setResponses((prev) =>
@@ -109,11 +111,10 @@ function ChecklistPageContent() {
 
   const handleSaveDraft = async () => {
     if (!activeEngineerName) {
-      setMessage("Please enter your engineer name before saving.");
+      setMessage("Please login again. Your name could not be loaded.");
       return;
     }
 
-    setEngineerName(activeEngineerName);
     setSaving(true);
     setMessage("");
 
@@ -155,17 +156,19 @@ function ChecklistPageContent() {
 
   const handleSubmit = async () => {
     if (!activeEngineerName) {
-      setMessage("Please enter your engineer name before submitting.");
+      setMessage("Please login again. Your name could not be loaded.");
       return;
     }
 
-    const incomplete = responses.filter((r) => r.status === null);
+    const incomplete = responses.filter((r) => !isMarked(r.status));
     if (incomplete.length > 0) {
-      setMessage(`Please complete all items. ${incomplete.length} remaining.`);
+      setMessage(
+        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Photo and remark are optional.`
+      );
+      scrollToChecklistItem(incomplete[0].checklistItemId);
       return;
     }
 
-    setEngineerName(activeEngineerName);
     setSubmitting(true);
     setMessage("");
 
@@ -229,21 +232,11 @@ function ChecklistPageContent() {
       padBottom
       breadcrumbs={breadcrumbItems}
       title={selection.checklistItemName || "Inspection Checklist"}
-      subtitle={
-        selection.parentChecklistItemName || (selection.locationId && selection.checklistItemName)
-          ? "Detailed equipment checklist"
-          : undefined
-      }
+      subtitle={user?.name ? `Inspector: ${user.name}` : undefined}
     >
       <div className="mb-6 space-y-4">
         <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-          <Input
-            label="Engineer Name"
-            placeholder="Enter your name"
-            value={localEngineerName}
-            onChange={(e) => setLocalEngineerName(e.target.value)}
-          />
-          <p className="mt-3 text-sm text-blue-700">
+          <p className="text-sm text-blue-700">
             <span className="font-semibold">Location:</span> {breadcrumb}
           </p>
         </div>
@@ -265,6 +258,12 @@ function ChecklistPageContent() {
           />
         ))}
       </div>
+
+      {incompleteCount > 0 && (
+        <p className="mt-3 text-center text-sm font-medium text-orange-600">
+          {incompleteCount} item{incompleteCount === 1 ? "" : "s"} still unmarked
+        </p>
+      )}
 
       {message && (
         <div

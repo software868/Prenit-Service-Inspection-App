@@ -1,10 +1,11 @@
 "use client";
 
 import { PageShell } from "@/components/layout/app-shell";
+import { PdfDownloadButton } from "@/components/reports/pdf-download-button";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { STATUS_OPTIONS } from "@/lib/types";
-import { FileDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ interface ReportDetail {
     itemName: string;
     checklistItem: { name: string; order: number } | null;
   }[];
+  attachments?: { type: string; fileName: string; filePath: string }[];
 }
 
 export default function ReportDetailPage() {
@@ -92,12 +94,11 @@ export default function ReportDetailPage() {
           )}
         </div>
 
-        <a href={`/api/reports/${report.id}/pdf`} download className="mt-4 inline-block">
-          <Button variant="secondary">
-            <FileDown className="h-4 w-4" />
-            Download PDF
-          </Button>
-        </a>
+        <PdfDownloadButton
+          reportId={report.id}
+          reportNumber={report.reportNumber}
+          className="mt-4"
+        />
       </div>
 
       <div className="space-y-3">
@@ -130,6 +131,20 @@ export default function ReportDetailPage() {
               {response.remarks && (
                 <p className="mt-2 text-sm text-slate-600">{response.remarks}</p>
               )}
+              {(report.attachments || [])
+                .filter(
+                  (file) =>
+                    file.type === "PHOTO" &&
+                    file.fileName.startsWith(`${response.itemName}::`)
+                )
+                .map((file) => (
+                  <img
+                    key={file.filePath}
+                    src={file.filePath}
+                    alt={response.itemName}
+                    className="mt-3 h-40 w-full rounded-lg object-cover"
+                  />
+                ))}
             </div>
           ))}
       </div>

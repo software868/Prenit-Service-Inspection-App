@@ -1,16 +1,18 @@
 "use client";
 
 import { PageShell } from "@/components/layout/app-shell";
+import { PdfDownloadButton } from "@/components/reports/pdf-download-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/utils";
 import {
   Download,
   Eye,
-  FileDown,
   Filter,
   Loader2,
   Search,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -28,14 +30,22 @@ interface Report {
 }
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState("");
+  const { user, loading: authLoading } = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [siteFilter, setSiteFilter] = useState("ALL");
+  const [users, setUsers] = useState<
+    { id: string; name: string; email: string; role: string }[]
+  >([]);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState("ENGINEER");
+  const [userMessage, setUserMessage] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -43,7 +53,7 @@ export default function AdminPage() {
       const params = new URLSearchParams();
       if (statusFilter !== "ALL") params.set("status", statusFilter);
       if (siteFilter !== "ALL") params.set("siteId", siteFilter);
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
 
       const res = await fetch(`/api/reports?${params}`);
       if (res.ok) setReports(await res.json());
@@ -52,20 +62,51 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, siteFilter, search]);
+  }, [statusFilter, siteFilter, debouncedSearch]);
 
   useEffect(() => {
-    if (authenticated) loadReports();
-  }, [authenticated, loadReports]);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user?.role === "ADMIN") loadReports();
+  }, [user, loadReports]);
+
+  const loadUsers = useCallback(async () => {
+    const res = await fetch("/api/users");
+    if (res.ok) setUsers(await res.json());
+  }, []);
+
+  useEffect(() => {
+    if (user?.role === "ADMIN") void loadUsers();
+  }, [user, loadUsers]);
+
+  const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === (process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "admin123")) {
-      setAuthenticated(true);
-      setAuthError("");
-    } else {
-      setAuthError("Invalid password");
+    setCreatingUser(true);
+    setUserMessage("");
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newName,
+        email: newEmail,
+        password: newPassword,
+        role: newRole,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setCreatingUser(false);
+    if (!res.ok) {
+      setUserMessage(data.error || "Could not create user");
+      return;
     }
+    setNewName("");
+    setNewEmail("");
+    setNewPassword("");
+    setUserMessage(`Login created for ${data.name}`);
+    void loadUsers();
   };
 
   const exportCSV = () => {
@@ -103,23 +144,20 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!authenticated) {
+  if (authLoading) {
     return (
-      <PageShell title="Admin Login" subtitle="Enter admin password to access dashboard">
-        <form onSubmit={handleLogin} className="mx-auto max-w-sm space-y-4">
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={authError}
-            placeholder="Enter admin password"
-          />
-          <Button type="submit" className="w-full" size="lg">
-            Login
-          </Button>
-          <p className="text-center text-xs text-slate-400">Default: admin123</p>
-        </form>
+      <PageShell title="Admin">
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!user || user.role !== "ADMIN") {
+    return (
+      <PageShell title="Admin only">
+        <p className="text-slate-600">This page is only for admin accounts.</p>
       </PageShell>
     );
   }
@@ -127,7 +165,72 @@ export default function AdminPage() {
   const sites = [...new Map(reports.map((r) => [r.site.id, r.site])).values()];
 
   return (
-    <PageShell wide title="Admin Dashboard" subtitle="View, search, and export inspection reports">
+    <PageShell wide title="Admin Dashboard" subtitle="Reports show who submitted each inspection">
+      <form
+        onSubmit={createUser}
+        className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      >
+        <div className="flex items-center gap-2">
+          <UserPlus className="h-5 w-5 text-blue-600" />
+          <h2 className="text-base font-semibold text-slate-900">Create user login</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input
+            label="Name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Engineer name"
+            required
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="name@prenit.com"
+            required
+          />
+          <Input
+            label="Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Password"
+            required
+          />
+          <label className="block text-sm font-medium text-slate-700">
+            Role
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base"
+            >
+              <option value="ENGINEER">Engineer</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </label>
+        </div>
+        <Button type="submit" loading={creatingUser}>
+          Create login
+        </Button>
+        {userMessage && <p className="text-sm font-medium text-blue-700">{userMessage}</p>}
+        {users.length > 0 && (
+          <ul className="divide-y divide-slate-100 text-sm">
+            {users.map((account) => (
+              <li key={account.id} className="flex items-center justify-between py-2">
+                <span className="font-medium text-slate-800">
+                  {account.name}{" "}
+                  <span className="font-normal text-slate-500">({account.email})</span>
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                  {account.role}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </form>
+
       <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -237,12 +340,7 @@ export default function AdminPage() {
                     View
                   </Button>
                 </Link>
-                <a href={`/api/reports/${report.id}/pdf`} download>
-                  <Button variant="secondary" size="sm">
-                    <FileDown className="h-4 w-4" />
-                    PDF
-                  </Button>
-                </a>
+                <PdfDownloadButton reportId={report.id} reportNumber={report.reportNumber} />
               </div>
             </div>
           ))}
@@ -291,12 +389,10 @@ export default function AdminPage() {
                           View
                         </Button>
                       </Link>
-                      <a href={`/api/reports/${report.id}/pdf`} download>
-                        <Button variant="secondary" size="sm">
-                          <FileDown className="h-4 w-4" />
-                          PDF
-                        </Button>
-                      </a>
+                      <PdfDownloadButton
+                        reportId={report.id}
+                        reportNumber={report.reportNumber}
+                      />
                     </div>
                   </td>
                 </tr>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionInlineInspection } from "@/components/checklist/section-inline-inspection";
 import { PageShell } from "@/components/layout/app-shell";
 import { SelectionCard } from "@/components/ui/selection-card";
 import {
@@ -13,7 +14,10 @@ import {
   getNestedComponentCount,
   isNestedParentEquipment,
 } from "@/lib/nested-equipment-checklist";
-import { getElectricalDetailedItemCount } from "@/lib/electrical-detailed-checklist";
+import {
+  getElectricalDetailedChecklistItems,
+  getElectricalDetailedItemCount,
+} from "@/lib/electrical-detailed-checklist";
 import { getHvacDetailedItemCount } from "@/lib/hvac-detailed-checklist";
 import { mergeNamedCatalog } from "@/lib/hierarchy-utils";
 import { getInspectionBreadcrumb, getNavBreadcrumbs } from "@/lib/extra-sites";
@@ -23,6 +27,7 @@ import {
   getMotEquipmentNames,
   usesExcelChecklists,
 } from "@/lib/site-checklists";
+import type { ChecklistItemResponse } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { useInspectionStore } from "@/store/inspection-store";
 import { ClipboardList, DoorOpen } from "lucide-react";
@@ -132,6 +137,74 @@ export default function SectionPage() {
       breadcrumb
     );
   };
+
+  const isElectricalSection = section?.name === "Electrical Section";
+
+  const electricalGroups = useMemo(() => {
+    if (!isElectricalSection) return [];
+    return checklistItems.map((item) => {
+      const detailed = getElectricalDetailedChecklistItems(item.id, item.name);
+      const items: ChecklistItemResponse[] =
+        detailed.length > 0
+          ? detailed
+          : [
+              {
+                checklistItemId: item.id,
+                name: item.name,
+                status: null,
+                remarks: "",
+              },
+            ];
+      return { equipmentId: item.id, equipmentName: item.name, items };
+    });
+  }, [checklistItems, isElectricalSection]);
+
+  const electricalSelection = useMemo(() => {
+    if (!site || !department || !section || !sectionEquipment) return null;
+    return {
+      siteId,
+      siteName: site.name,
+      siteSlug: site.slug,
+      departmentId: deptId,
+      departmentName: department.name,
+      departmentSlug: department.slug,
+      sectionId,
+      sectionName: section.name,
+      sectionSlug: section.slug,
+      equipmentId: sectionEquipment.id,
+      equipmentName: sectionEquipment.name,
+    };
+  }, [site, department, section, sectionEquipment, siteId, deptId, sectionId]);
+
+  const electricalBreadcrumb = useMemo(() => {
+    if (!site || !department || !section) return "";
+    return getInspectionBreadcrumb({
+      siteName: site.name,
+      departmentName: department.name,
+      departmentSlug: department.slug,
+      rest: [section.name],
+    });
+  }, [site, department, section]);
+
+  if (isElectricalSection && electricalSelection && electricalGroups.length > 0) {
+    return (
+      <SectionInlineInspection
+        title="Electrical Inspection"
+        breadcrumbs={getNavBreadcrumbs({
+          siteId,
+          siteName: site?.name,
+          departmentId: deptId,
+          departmentName: department?.name,
+          departmentSlug: department?.slug,
+          current: section?.name || "Electrical Section",
+        })}
+        breadcrumb={electricalBreadcrumb}
+        selection={electricalSelection}
+        groups={electricalGroups}
+        initKey={`${sectionId}:${electricalSelection.equipmentId}:${electricalGroups.length}`}
+      />
+    );
+  }
 
   const excelSite = usesExcelChecklists(site?.slug, site?.name);
 

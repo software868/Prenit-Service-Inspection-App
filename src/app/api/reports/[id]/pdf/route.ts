@@ -14,12 +14,14 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    const pdfBuffer = await generateReportPDF(report);
+    const pdfBuffer = generateReportPDF(report);
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${report.reportNumber}.pdf"`,
+        "Content-Length": String(pdfBuffer.length),
+        "Cache-Control": "private, max-age=120",
       },
     });
   } catch (error) {

@@ -1,4 +1,6 @@
 import type { ServiceReport } from "@prisma/client";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type ReportWithRelations = ServiceReport & {
   site: { name: string };
@@ -10,11 +12,8 @@ type ReportWithRelations = ServiceReport & {
   }[];
 };
 
-export async function generateReportPDF(report: ReportWithRelations): Promise<Buffer> {
-  const { jsPDF } = await import("jspdf");
-  const autoTable = (await import("jspdf-autotable")).default;
-
-  const doc = new jsPDF();
+export function generateReportPDF(report: ReportWithRelations): Buffer {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFillColor(37, 99, 235);
@@ -65,14 +64,15 @@ export async function generateReportPDF(report: ReportWithRelations): Promise<Bu
     startY: y,
     head: [["#", "Checklist Item", "Status", "Remarks"]],
     body: tableData,
-    styles: { fontSize: 8, cellPadding: 2 },
+    styles: { fontSize: 8, cellPadding: 2, overflow: "linebreak" },
     headStyles: { fillColor: [16, 185, 129] },
     columnStyles: {
       0: { cellWidth: 10 },
-      1: { cellWidth: 55 },
-      2: { cellWidth: 20 },
-      3: { cellWidth: 95 },
+      1: { cellWidth: 62 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 88 },
     },
+    margin: { left: 14, right: 14 },
   });
 
   const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
