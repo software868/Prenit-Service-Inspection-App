@@ -2,7 +2,7 @@ import { uploadInspectionImage } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
 import { generateReportNumber } from "@/lib/utils";
 import type { ChecklistItemResponse } from "@/lib/types";
-import { AttachmentType, ReportStatus } from "@prisma/client";
+import { AttachmentType, Prisma, ReportStatus } from "@prisma/client";
 import { randomBytes } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -19,7 +19,7 @@ function mongoDate(date = new Date()) {
   return { $date: date.toISOString() };
 }
 
-async function rawCommand(command: Record<string, unknown>) {
+async function rawCommand(command: Prisma.InputJsonObject) {
   await prisma.$runCommandRaw(command);
 }
 
