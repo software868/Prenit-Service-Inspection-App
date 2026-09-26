@@ -72,12 +72,6 @@ export interface DraftReport {
   updatedAt?: string;
 }
 
-export const VOICE_LANGUAGES = [
-  { id: "en", code: "en-IN", label: "English" },
-  { id: "hi", code: "hi-IN", label: "Hindi" },
-  { id: "hinglish", code: "en-IN", label: "Hinglish" },
-] as const;
-
 export const STATUS_OPTIONS: { value: ChecklistStatusValue; label: string; color: string }[] = [
   { value: "OK", label: "OK", color: "bg-emerald-500" },
   { value: "NOT_OK", label: "Not OK", color: "bg-orange-500" },

@@ -89,6 +89,7 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <VoiceControls
+              key={item.checklistItemId}
               value={item.remarks}
               onChange={(remarks) => onChange(index, { remarks })}
               className="mt-3"
