@@ -16,6 +16,7 @@ interface ChecklistItemFormProps {
 
 export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormProps) {
   const [expanded, setExpanded] = useState(true);
+  const [showPhoto, setShowPhoto] = useState(Boolean(item.remarks?.trim() || item.photoData));
 
   return (
     <div
@@ -77,11 +78,12 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Remarks <span className="font-normal text-slate-400">(optional)</span>
+              Remarks <span className="font-normal text-slate-400">(optional — tap to add a photo)</span>
             </label>
             <textarea
               value={item.remarks}
               onChange={(e) => onChange(index, { remarks: e.target.value })}
+              onFocus={() => setShowPhoto(true)}
               rows={3}
               placeholder="Optional remark..."
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -93,18 +95,20 @@ export function ChecklistItemForm({ item, index, onChange }: ChecklistItemFormPr
             />
           </div>
 
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">
-              Photo <span className="font-normal text-slate-400">(optional)</span>
-            </p>
-            <PhotoUpload
-              value={item.photoData}
-              fileName={item.photoFileName}
-              onChange={(photoData, photoFileName) =>
-                onChange(index, { photoData, photoFileName })
-              }
-            />
-          </div>
+          {showPhoto ? (
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">
+                Photo <span className="font-normal text-slate-400">(optional)</span>
+              </p>
+              <PhotoUpload
+                value={item.photoData}
+                fileName={item.photoFileName}
+                onChange={(photoData, photoFileName) =>
+                  onChange(index, { photoData, photoFileName })
+                }
+              />
+            </div>
+          ) : null}
 
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">Audio Note</p>

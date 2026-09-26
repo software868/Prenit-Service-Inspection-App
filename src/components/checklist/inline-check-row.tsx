@@ -4,7 +4,7 @@ import { PhotoUpload } from "@/components/checklist/photo-upload";
 import { VoiceControls } from "@/components/checklist/voice-controls";
 import type { ChecklistItemResponse, ChecklistStatusValue } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, ImagePlus, MessageSquarePlus, X } from "lucide-react";
+import { Check, MessageSquarePlus, X } from "lucide-react";
 import { useState } from "react";
 
 interface InlineCheckRowProps {
@@ -21,7 +21,7 @@ export function StatusLegendHeader() {
         <p className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-slate-500">
           Item
         </p>
-        <div className="flex shrink-0 items-center gap-2 pr-24">
+        <div className="flex shrink-0 items-center gap-2 pr-12">
           <div className="flex w-10 flex-col items-center gap-0.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white">
               <Check className="h-4 w-4 stroke-[3]" />
@@ -46,8 +46,9 @@ export function InlineCheckRow({
   highlightMissing = false,
   onChange,
 }: InlineCheckRowProps) {
-  const [showRemark, setShowRemark] = useState(Boolean(item.remarks?.trim()));
-  const [showPhoto, setShowPhoto] = useState(Boolean(item.photoData));
+  const [showRemark, setShowRemark] = useState(
+    Boolean(item.remarks?.trim() || item.photoData)
+  );
 
   const setStatus = (status: ChecklistStatusValue) => {
     // Always set the chosen status (do not toggle off — keeps Submit enable correct)
@@ -102,25 +103,10 @@ export function InlineCheckRow({
 
           <button
             type="button"
-            onClick={() => setShowPhoto((open) => !open)}
-            className={cn(
-              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
-              showPhoto || item.photoData
-                ? "bg-blue-50 text-blue-600"
-                : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
-            )}
-            title="Add photo (optional)"
-            aria-label="Add photo (optional)"
-          >
-            <ImagePlus className="h-4 w-4" />
-          </button>
-
-          <button
-            type="button"
             onClick={() => setShowRemark((open) => !open)}
             className={cn(
               "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
-              showRemark || item.remarks?.trim()
+              showRemark || item.remarks?.trim() || item.photoData
                 ? "bg-blue-50 text-blue-600"
                 : "text-slate-400 hover:bg-slate-50 hover:text-blue-600"
             )}
@@ -132,18 +118,8 @@ export function InlineCheckRow({
         </div>
       </div>
 
-      {showPhoto ? (
-        <div className="mt-2 border-t border-slate-100 pt-2">
-          <PhotoUpload
-            value={item.photoData}
-            fileName={item.photoFileName}
-            onChange={(photoData, photoFileName) => onChange({ photoData, photoFileName })}
-          />
-        </div>
-      ) : null}
-
       {showRemark ? (
-        <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+        <div className="mt-2 space-y-3 border-t border-slate-100 pt-2">
           <textarea
             value={item.remarks}
             onChange={(e) => onChange({ remarks: e.target.value })}
@@ -155,6 +131,11 @@ export function InlineCheckRow({
             value={item.remarks}
             onChange={(remarks) => onChange({ remarks })}
             compact
+          />
+          <PhotoUpload
+            value={item.photoData}
+            fileName={item.photoFileName}
+            onChange={(photoData, photoFileName) => onChange({ photoData, photoFileName })}
           />
         </div>
       ) : null}

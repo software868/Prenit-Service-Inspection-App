@@ -338,7 +338,7 @@ export default function LocationPage() {
     if (incomplete.length > 0) {
       setHighlightIncomplete(true);
       setMessage(
-        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Photo and remark are optional.`
+        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Remark is optional.`
       );
       scrollToChecklistItem(incomplete[0].checklistItemId);
       return;

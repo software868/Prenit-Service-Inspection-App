@@ -199,7 +199,7 @@ export function SectionInlineInspection({
     if (incomplete.length > 0) {
       setHighlightIncomplete(true);
       setMessage(
-        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Photo and remark are optional.`
+        `Mark OK or Not OK on ${incomplete.length} remaining item${incomplete.length === 1 ? "" : "s"}. Remark is optional.`
       );
       scrollToChecklistItem(incomplete[0].checklistItemId);
       return;
@@ -253,7 +253,7 @@ export function SectionInlineInspection({
       subtitle={
         user?.name
           ? `Inspector: ${user.name} — tap ✓ or ✕ for each item`
-          : "Tap ✓ or ✕ for each item — add a photo or remark only if needed"
+          : "Tap ✓ or ✕ for each item — add a remark only if needed"
       }
     >
       <div className="mb-4">
