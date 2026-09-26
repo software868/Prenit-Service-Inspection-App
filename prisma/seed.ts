@@ -44,6 +44,24 @@ import { getExcelMgpsCatalog } from "../src/lib/excel-mgps-checklist";
 
 const prisma = new PrismaClient();
 
+async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const retryable = /I\/O error|closed|RetryableWriteError|P2010|P1001|timeout|Server selection/i.test(
+        message
+      );
+      if (!retryable || i === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1500 * (i + 1)));
+    }
+  }
+  throw lastError;
+}
+
 const OT_EQUIPMENT = [...OT_EQUIPMENT_LIST];
 
 const ELECTRICAL_EQUIPMENT = [
@@ -99,15 +117,17 @@ async function ensureChecklistItem(data: {
   });
   if (existingByName) return existingByName;
 
-  return prisma.checklistItem.create({
-    data: {
-      equipmentId: data.equipmentId,
-      name: data.name,
-      slug: data.slug,
-      order: data.order,
-      ...(data.parentId ? { parentId: data.parentId } : {}),
-    },
-  });
+  return withRetry(() =>
+    prisma.checklistItem.create({
+      data: {
+        equipmentId: data.equipmentId,
+        name: data.name,
+        slug: data.slug,
+        order: data.order,
+        ...(data.parentId ? { parentId: data.parentId } : {}),
+      },
+    })
+  );
 }
 
 function nestedDetailedItems(parentName: string, componentName: string): readonly string[] {
@@ -567,15 +587,19 @@ async function createSectionEquipment(
 }
 
 async function createBaseData() {
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: "engineer@prenit.com" },
+    update: {},
+    create: {
       name: "Service Engineer",
       email: "engineer@prenit.com",
       role: UserRole.ENGINEER,
     },
   });
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: "admin@prenit.com" },
+    update: {},
+    create: {
       name: "Admin User",
       email: "admin@prenit.com",
       role: UserRole.ADMIN,

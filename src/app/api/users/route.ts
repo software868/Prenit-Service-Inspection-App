@@ -1,4 +1,4 @@
-import { getSessionUser, hashPassword, insertUserDocument } from "@/lib/auth";
+import { findUserByEmail, getSessionUser, hashPassword, insertUserDocument } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await findUserByEmail(email);
   if (existing) {
     return NextResponse.json({ error: "Email already exists" }, { status: 409 });
   }
@@ -47,10 +47,10 @@ export async function POST(request: Request) {
     passwordHash: hashPassword(password),
   });
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
-  });
-
-  return NextResponse.json(user);
+  const user = await findUserByEmail(email);
+  return NextResponse.json(
+    user
+      ? { id: user.id, name: user.name, email: user.email, role: user.role }
+      : { name, email, role }
+  );
 }

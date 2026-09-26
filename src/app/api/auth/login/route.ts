@@ -1,12 +1,13 @@
 import {
   createSessionToken,
+  describeDatabaseError,
   ensureDefaultAdmin,
+  findUserByEmail,
   sessionCookieName,
   sessionCookieOptions,
   toSessionUser,
   verifyPassword,
 } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -20,16 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        passwordHash: true,
-      },
-    });
+    const user = await findUserByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
@@ -40,6 +32,6 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error("Login failed:", error);
-    return NextResponse.json({ error: "Login failed. Check database connection." }, { status: 500 });
+    return NextResponse.json({ error: describeDatabaseError(error) }, { status: 500 });
   }
 }
