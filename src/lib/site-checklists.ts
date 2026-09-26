@@ -3,6 +3,7 @@ import {
   EXCEL_MOT_EQUIPMENT,
   getExcelMotDetailedChecklistItems,
   getExcelMotDetailedItemCount,
+  letteredChecklistItems,
 } from "./excel-mot-checklist";
 import {
   getExcelMgpsCatalog,
@@ -112,7 +113,7 @@ export function getMgpsDetailedChecklistItems(
   siteName?: string | null,
   departmentName?: string | null
 ) {
-  return usesExcelChecklists(siteSlug, siteName)
+  const items = usesExcelChecklists(siteSlug, siteName)
     ? getExcelMgpsDetailedChecklistItems(
         parentItemId,
         equipmentName,
@@ -120,4 +121,5 @@ export function getMgpsDetailedChecklistItems(
         departmentName
       )
     : getMgpsSiteDetailedChecklistItems(parentItemId, equipmentName);
+  return usesExcelChecklists(siteSlug, siteName) ? letteredChecklistItems(items) : items;
 }

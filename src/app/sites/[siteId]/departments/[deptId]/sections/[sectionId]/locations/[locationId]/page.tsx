@@ -12,7 +12,9 @@ import {
   useHierarchy,
 } from "@/hooks/use-hierarchy";
 import { useAuth } from "@/hooks/use-auth";
+import { getExcelMotHeading } from "@/lib/excel-mot-checklist";
 import { getInspectionBreadcrumb, getNavBreadcrumbs } from "@/lib/extra-sites";
+import { usesExcelChecklists } from "@/lib/site-checklists";
 import { mergeNamedCatalog } from "@/lib/hierarchy-utils";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import { getMotDetailedChecklistItems, getMotEquipmentNames } from "@/lib/site-checklists";
@@ -27,6 +29,7 @@ type EquipmentGroup = {
   equipmentId: string;
   equipmentName: string;
   items: ChecklistItemResponse[];
+  showHeading?: boolean;
 };
 
 function isMarked(status: ChecklistItemResponse["status"]) {
@@ -141,18 +144,20 @@ export default function LocationPage() {
         site?.slug,
         site?.name
       );
+      const excel = usesExcelChecklists(site?.slug, site?.name);
+      const heading = excel ? getExcelMotHeading(equipment.name) : equipment.name;
 
+      const hasLetteredPoints = detailed.some((item) => /^\s*[a-z]\.\s/i.test(item.name));
       const items =
         detailed.length > 0
           ? detailed.map((item) => ({
               ...item,
-              // Single sub-check: show equipment name as the row title
-              name: detailed.length === 1 ? equipment.name : item.name,
+              name: excel || detailed.length > 1 ? item.name : equipment.name,
             }))
           : [
               {
                 checklistItemId: equipment.id,
-                name: equipment.name,
+                name: heading,
                 status: null,
                 remarks: "",
               },
@@ -160,8 +165,9 @@ export default function LocationPage() {
 
       return {
         equipmentId: equipment.id,
-        equipmentName: equipment.name,
+        equipmentName: heading,
         items,
+        showHeading: excel ? hasLetteredPoints : detailed.length > 1,
       };
     });
   }, [checklistItems, site?.name, site?.slug]);
@@ -417,7 +423,7 @@ export default function LocationPage() {
         <StatusLegendHeader />
 
         {groups.map((group) => {
-          const showGroupHeader = group.items.length > 1;
+          const showGroupHeader = group.showHeading ?? group.items.length > 1;
 
           return (
             <div key={group.equipmentId}>

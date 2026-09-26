@@ -355,17 +355,37 @@ async function ensureSectionEquipmentItems(equipmentId: string, equipmentNames: 
   }
 }
 
-async function ensureOTLocations(sectionId: string, prefix: string) {
+async function ensureOTLocations(sectionId: string, prefix: string, otCount = 8) {
   const existing = await prisma.location.findMany({
     where: { sectionId },
     orderBy: { order: "asc" },
   });
-  if (existing.length > 0) return existing;
-  return createOTLocations(sectionId, prefix);
+  if (existing.length >= otCount) return existing;
+  if (existing.length === 0) return createOTLocations(sectionId, prefix, otCount);
+
+  const locations = [...existing];
+  for (let i = existing.length + 1; i <= otCount; i++) {
+    const name = `OT-${i}`;
+    const location = await prisma.location.create({
+      data: {
+        sectionId,
+        name,
+        slug: slugify(`${prefix}-${name}`),
+        order: i,
+      },
+    });
+    locations.push(location);
+  }
+  return locations;
 }
 
-async function ensureOTEquipmentForSection(sectionId: string, prefix: string, excel = false) {
-  const locations = await ensureOTLocations(sectionId, prefix);
+async function ensureOTEquipmentForSection(
+  sectionId: string,
+  prefix: string,
+  excel = false,
+  otCount = 8
+) {
+  const locations = await ensureOTLocations(sectionId, prefix, otCount);
   for (const location of locations) {
     const existing = await prisma.equipment.findFirst({
       where: { sectionId, locationId: location.id },
@@ -389,7 +409,13 @@ async function ensureOTEquipmentForSection(sectionId: string, prefix: string, ex
   }
 }
 
-async function ensureMotSection(departmentId: string, prefix: string, order: number, excel = false) {
+async function ensureMotSection(
+  departmentId: string,
+  prefix: string,
+  order: number,
+  excel = false,
+  otCount = 8
+) {
   let section = await prisma.section.findFirst({
     where: { departmentId, slug: "mot" },
   });
@@ -403,7 +429,7 @@ async function ensureMotSection(departmentId: string, prefix: string, order: num
       },
     });
   }
-  await ensureOTEquipmentForSection(section.id, prefix, excel);
+  await ensureOTEquipmentForSection(section.id, prefix, excel, otCount);
 }
 
 async function ensureMgpsSection(
@@ -478,7 +504,13 @@ async function syncExtraSites() {
 
       for (const [sIndex, service] of hospital.services.entries()) {
         if (service === "MOT") {
-          await ensureMotSection(dept.id, `${extra.slug}-${hospital.slug}`, sIndex + 1, true);
+          await ensureMotSection(
+            dept.id,
+            `${extra.slug}-${hospital.slug}`,
+            sIndex + 1,
+            true,
+            hospital.otCount || 8
+          );
         } else {
           await ensureMgpsSection(dept.id, sIndex + 1, {
             excel: true,
@@ -523,9 +555,9 @@ async function syncMissingChecklistItems() {
   console.log("Checklist sync complete.");
 }
 
-async function createOTLocations(sectionId: string, prefix: string) {
+async function createOTLocations(sectionId: string, prefix: string, otCount = 8) {
   const locations = [];
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= otCount; i++) {
     const name = `OT-${i}`;
     const location = await prisma.location.create({
       data: {

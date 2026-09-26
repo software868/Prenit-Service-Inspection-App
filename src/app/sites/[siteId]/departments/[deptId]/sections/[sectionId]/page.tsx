@@ -20,6 +20,7 @@ import {
 } from "@/lib/electrical-detailed-checklist";
 import { getHvacDetailedItemCount } from "@/lib/hvac-detailed-checklist";
 import { mergeNamedCatalog } from "@/lib/hierarchy-utils";
+import { getExcelMgpsHeading } from "@/lib/excel-mgps-checklist";
 import { getInspectionBreadcrumb, getNavBreadcrumbs } from "@/lib/extra-sites";
 import {
   getMgpsDetailedItemCount,
@@ -48,6 +49,7 @@ export default function SectionPage() {
   const section = findSection(data, siteId, deptId, sectionId);
 
   const hasLocations = (section?.locations.length || 0) > 0;
+  const excelSite = usesExcelChecklists(site?.slug, site?.name);
 
   const sectionEquipment = useMemo(() => {
     const equipment = section?.equipment.filter((e) => !e.locationId) || [];
@@ -81,6 +83,11 @@ export default function SectionPage() {
     return getChecklistHref(checklistItemId, checklistItemName);
   };
 
+  const getEquipmentTitle = (name: string) =>
+    excelSite && section?.name === "MGPS"
+      ? getExcelMgpsHeading(name, department?.slug, department?.name)
+      : name;
+
   const getChecklistHref = (checklistItemId: string, checklistItemName: string) => {
     if (!site || !department || !section || !sectionEquipment) return "#";
 
@@ -88,7 +95,7 @@ export default function SectionPage() {
       siteName: site.name,
       departmentName: department.name,
       departmentSlug: department.slug,
-      rest: [section.name, checklistItemName],
+      rest: [section.name, getEquipmentTitle(checklistItemName)],
     });
     const path = {
       siteId,
@@ -116,7 +123,7 @@ export default function SectionPage() {
       siteName: site.name,
       departmentName: department.name,
       departmentSlug: department.slug,
-      rest: [section.name, checklistItemName],
+      rest: [section.name, getEquipmentTitle(checklistItemName)],
     });
     setSelection(
       {
@@ -206,8 +213,6 @@ export default function SectionPage() {
     );
   }
 
-  const excelSite = usesExcelChecklists(site?.slug, site?.name);
-
   const getDetailedItemCount = (name: string) =>
     getElectricalDetailedItemCount(name) ||
     getHvacDetailedItemCount(name) ||
@@ -254,7 +259,7 @@ export default function SectionPage() {
               className="block w-full text-left"
             >
               <SelectionCard
-                title={item.name}
+                title={getEquipmentTitle(item.name)}
                 subtitle={
                   !excelSite && isNestedParentEquipment(item.name)
                     ? `${getNestedComponentCount(item.name)} components to inspect`

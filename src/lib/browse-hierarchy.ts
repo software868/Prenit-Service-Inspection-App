@@ -104,8 +104,8 @@ function buildSectionEquipment(
   ];
 }
 
-function buildExtraMotSection(sectionId: string, prefix: string) {
-  const locations = Array.from({ length: 8 }, (_, i) => ({
+function buildExtraMotSection(sectionId: string, prefix: string, otCount = 8) {
+  const locations = Array.from({ length: otCount }, (_, i) => ({
     id: nextExtraId("xlc"),
     sectionId,
     name: `OT-${i + 1}`,
@@ -120,7 +120,10 @@ function buildExtraMotSection(sectionId: string, prefix: string) {
       name: "OT Equipment Checklist",
       slug: `ot-equipment-${location.id}`,
       locationId: location.id,
-      checklistItems: parentItems(equipmentId, EXCEL_MOT_EQUIPMENT),
+      checklistItems: parentItems(
+        equipmentId,
+        EXCEL_MOT_EQUIPMENT
+      ),
     };
   });
 
@@ -135,7 +138,7 @@ function buildExtraHospitalSections(
   return hospital.services.map((service: SiteService, index) => {
     const sectionId = nextExtraId("xsc");
     if (service === "MOT") {
-      const mot = buildExtraMotSection(sectionId, prefix);
+      const mot = buildExtraMotSection(sectionId, prefix, hospital.otCount || 8);
       return {
         id: sectionId,
         name: "MOT",

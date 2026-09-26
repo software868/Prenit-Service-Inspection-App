@@ -1,3 +1,4 @@
+import { letteredLabel } from "./excel-mot-checklist";
 import type { ChecklistItemResponse } from "./types";
 import { slugify } from "./utils";
 
@@ -318,7 +319,19 @@ export function getExcelMgpsDetailedItemCount(
   departmentName?: string | null
 ): number {
   const { detailed } = getExcelMgpsCatalog(departmentSlug, departmentName);
-  return detailed[equipmentName]?.length || 0;
+  const checks = detailed[equipmentName];
+  if (!checks) return 0;
+  return checks.length || 1;
+}
+
+export function getExcelMgpsHeading(
+  name: string,
+  departmentSlug?: string | null,
+  departmentName?: string | null
+) {
+  const { names } = getExcelMgpsCatalog(departmentSlug, departmentName);
+  const index = names.indexOf(name);
+  return index >= 0 ? `${index + 1}. ${name}` : name;
 }
 
 export function getExcelMgpsDetailedChecklistItems(
@@ -330,9 +343,19 @@ export function getExcelMgpsDetailedChecklistItems(
   const { detailed } = getExcelMgpsCatalog(departmentSlug, departmentName);
   const checks = detailed[equipmentName];
   if (!checks) return [];
-  return checks.map((name) => ({
+  if (checks.length === 0) {
+    return [
+      {
+        checklistItemId: `${parentItemId}--heading`,
+        name: getExcelMgpsHeading(equipmentName, departmentSlug, departmentName),
+        status: null,
+        remarks: "",
+      },
+    ];
+  }
+  return checks.map((name, index) => ({
     checklistItemId: `${parentItemId}--${slugify(name)}`,
-    name,
+    name: letteredLabel(index, name),
     status: null,
     remarks: "",
   }));

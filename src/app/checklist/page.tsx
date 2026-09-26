@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { hasValidSelection, parseChecklistParams, buildBreadcrumbNavItems } from "@/lib/checklist-navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { getExcelMgpsHeading } from "@/lib/excel-mgps-checklist";
+import { getExcelMotHeading } from "@/lib/excel-mot-checklist";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import { resolveChecklistItems } from "@/lib/resolve-checklist-items";
+import { usesExcelChecklists } from "@/lib/site-checklists";
 import type { ChecklistItemResponse, SelectionPath } from "@/lib/types";
 import { useInspectionStore } from "@/store/inspection-store";
 import { Loader2, Save, Send } from "lucide-react";
@@ -226,12 +229,24 @@ function ChecklistPageContent() {
   }
 
   const breadcrumbItems = buildBreadcrumbNavItems(selection, breadcrumb);
+  const excel = usesExcelChecklists(selection.siteSlug, selection.siteName);
+  const headingName = selection.checklistItemName
+    ? excel && selection.locationId
+      ? getExcelMotHeading(selection.checklistItemName)
+      : excel
+        ? getExcelMgpsHeading(
+            selection.checklistItemName,
+            selection.departmentSlug,
+            selection.departmentName
+          )
+        : selection.checklistItemName
+    : "Inspection Checklist";
 
   return (
     <PageShell
       padBottom
       breadcrumbs={breadcrumbItems}
-      title={selection.checklistItemName || "Inspection Checklist"}
+      title={headingName}
       subtitle={user?.name ? `Inspector: ${user.name}` : undefined}
     >
       <div className="mb-6 space-y-4">

@@ -7,6 +7,7 @@ export type ExtraHospital = {
   name: string;
   slug: string;
   services: SiteService[];
+  otCount?: number;
 };
 
 export type ExtraSite = {
@@ -14,6 +15,7 @@ export type ExtraSite = {
   slug: string;
   hospitals?: ExtraHospital[];
   services?: SiteService[];
+  otCount?: number;
 };
 
 export const EXTRA_SITES: ExtraSite[] = [
@@ -22,7 +24,7 @@ export const EXTRA_SITES: ExtraSite[] = [
     name: "Gorakhpur",
     slug: "gorakhpur",
     hospitals: [
-      { name: "AIIMS Gorakhpur", slug: "aiims-gorakhpur", services: ["MOT", "MGPS"] },
+      { name: "AIIMS Gorakhpur", slug: "aiims-gorakhpur", services: ["MOT", "MGPS"], otCount: 15 },
       { name: "BRD Gorakhpur", slug: "brd-gorakhpur", services: ["MGPS"] },
     ],
   },
@@ -34,17 +36,27 @@ export const EXTRA_SITES: ExtraSite[] = [
       { name: "NMCH Kota", slug: "nmch-kota", services: ["MGPS"] },
     ],
   },
-  { name: "BHU", slug: "bhu", services: ["MGPS"] },
-  { name: "Bathinda", slug: "bathinda", services: ["MOT", "MGPS"] },
-  { name: "Kozhikode", slug: "kozhikode", services: ["MOT", "MGPS"] },
-  { name: "Burla", slug: "burla", services: ["MOT"] },
-  { name: "Alappuzha", slug: "alappuzha", services: ["MOT"] },
-  { name: "Ambala", slug: "ambala", services: ["MOT"] },
+  {
+    name: "BHU",
+    slug: "bhu",
+    hospitals: [
+      { name: "Emergency", slug: "bhu-emergency", services: ["MGPS"] },
+      { name: "Pediatric", slug: "bhu-pediatric", services: ["MGPS"] },
+      { name: "IPD", slug: "bhu-ipd", services: ["MGPS"] },
+      { name: "Ayurveda", slug: "bhu-ayurveda", services: ["MGPS"] },
+      { name: "MCH", slug: "bhu-mch", services: ["MGPS"] },
+    ],
+  },
+  { name: "Bathinda", slug: "bathinda", services: ["MOT", "MGPS"], otCount: 16 },
+  { name: "Kozhikode", slug: "kozhikode", services: ["MOT", "MGPS"], otCount: 19 },
+  { name: "Burla", slug: "burla", services: ["MOT"], otCount: 9 },
+  { name: "Alappuzha", slug: "alappuzha", services: ["MOT"], otCount: 8 },
+  { name: "Ambala", slug: "ambala", services: ["MOT"], otCount: 2 },
   { name: "Bhavnagar", slug: "bhavnagar", services: ["MOT"] },
-  { name: "Darbhanga", slug: "darbhanga", services: ["MOT"] },
-  { name: "Goa", slug: "goa", services: ["MOT", "MGPS"] },
-  { name: "Indore", slug: "indore", services: ["MOT"] },
-  { name: "Jaipur", slug: "jaipur", services: ["MOT"] },
+  { name: "Darbhanga", slug: "darbhanga", services: ["MOT"], otCount: 8 },
+  { name: "Goa", slug: "goa", services: ["MGPS"] },
+  { name: "Indore", slug: "indore", services: ["MOT"], otCount: 10 },
+  { name: "Jaipur", slug: "jaipur", services: ["MOT"], otCount: 6 },
   { name: "Aurangabad", slug: "aurangabad", services: ["MGPS"] },
   { name: "Bellary", slug: "bellary", services: ["MGPS"] },
   { name: "Berhampur", slug: "berhampur", services: ["MGPS"] },
@@ -52,11 +64,11 @@ export const EXTRA_SITES: ExtraSite[] = [
   { name: "Prayagraj", slug: "prayagraj", services: ["MGPS"] },
   { name: "Rewa", slug: "rewa", services: ["MGPS"] },
   { name: "Thanjavur", slug: "thanjavur", services: ["MGPS"] },
-  { name: "Agra", slug: "agra", services: ["MOT", "MGPS"] },
-  { name: "Gaya", slug: "gaya", services: ["MOT", "MGPS"] },
-  { name: "Jhansi", slug: "jhansi", services: ["MOT", "MGPS"] },
-  { name: "Latur", slug: "latur", services: ["MOT", "MGPS"] },
-  { name: "Tirunelveli", slug: "tirunelveli", services: ["MOT", "MGPS"] },
+  { name: "Agra", slug: "agra", services: ["MOT", "MGPS"], otCount: 5 },
+  { name: "Gaya", slug: "gaya", services: ["MOT", "MGPS"], otCount: 8 },
+  { name: "Jhansi", slug: "jhansi", services: ["MGPS"] },
+  { name: "Latur", slug: "latur", services: ["MOT", "MGPS"], otCount: 8 },
+  { name: "Tirunelveli", slug: "tirunelveli", services: ["MGPS"] },
 ];
 
 export function isDirectDepartment(slug?: string | null) {
@@ -74,6 +86,7 @@ export function getExtraSiteHospitals(site: ExtraSite): ExtraHospital[] {
       name: site.name,
       slug: DIRECT_DEPARTMENT_SLUG,
       services: site.services || [],
+      otCount: site.otCount,
     },
   ];
 }
