@@ -1,7 +1,9 @@
 import { uploadInspectionImage } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
+import { resolveSubmitLocation } from "@/lib/reverse-geocode";
+import type { StoredSubmitLocation } from "@/lib/geo";
 import { generateReportNumber } from "@/lib/utils";
-import type { ChecklistItemResponse } from "@/lib/types";
+import type { ChecklistItemResponse, SubmitLocationInput } from "@/lib/types";
 import { AttachmentType, Prisma, ReportStatus } from "@prisma/client";
 import { randomBytes } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
@@ -43,6 +45,7 @@ interface SaveReportInput {
   breadcrumb: string;
   status: "DRAFT" | "SUBMITTED";
   responses: ChecklistItemResponse[];
+  submitLocation?: SubmitLocationInput | null;
 }
 
 function isMongoObjectId(value?: string | null): value is string {
@@ -286,11 +289,37 @@ async function saveAttachment(
   });
 }
 
+function submitLocationDoc(location: StoredSubmitLocation | null) {
+  if (!location) {
+    return {
+      submitLatitude: null,
+      submitLongitude: null,
+      submitAccuracy: null,
+      submitAddress: null,
+      submitMapUrl: null,
+      submitLocationAt: null,
+    };
+  }
+
+  return {
+    submitLatitude: location.latitude,
+    submitLongitude: location.longitude,
+    submitAccuracy: location.accuracy,
+    submitAddress: location.address,
+    submitMapUrl: location.mapUrl,
+    submitLocationAt: mongoDate(location.capturedAt),
+  };
+}
+
 export async function saveServiceReport(input: SaveReportInput) {
   const status =
     input.status === "SUBMITTED" ? ReportStatus.SUBMITTED : ReportStatus.DRAFT;
 
   const ids = await resolveInspectionIds(input);
+  const resolvedLocation =
+    status === ReportStatus.SUBMITTED
+      ? await resolveSubmitLocation(input.submitLocation)
+      : null;
 
   const reportData = {
     siteId: ids.siteId,
@@ -321,6 +350,7 @@ export async function saveServiceReport(input: SaveReportInput) {
     status: reportData.status,
     submittedAt: reportData.submittedAt ? mongoDate(reportData.submittedAt) : null,
     updatedAt: now,
+    ...(resolvedLocation ? submitLocationDoc(resolvedLocation) : {}),
   };
 
   if (existingId) {
@@ -443,8 +473,62 @@ export async function getReports(filters?: {
   });
 }
 
+function parseMongoDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === "object" && value !== null && "$date" in value) {
+    return parseMongoDate((value as { $date: unknown }).$date);
+  }
+  return null;
+}
+
+async function readSubmitLocationFields(id: string) {
+  const empty = {
+    submitLatitude: null as number | null,
+    submitLongitude: null as number | null,
+    submitAccuracy: null as number | null,
+    submitAddress: null as string | null,
+    submitMapUrl: null as string | null,
+    submitLocationAt: null as Date | null,
+  };
+
+  try {
+    const result = (await prisma.$runCommandRaw({
+      find: "ServiceReport",
+      filter: { _id: oid(id) },
+      projection: {
+        submitLatitude: 1,
+        submitLongitude: 1,
+        submitAccuracy: 1,
+        submitAddress: 1,
+        submitMapUrl: 1,
+        submitLocationAt: 1,
+      },
+      limit: 1,
+    })) as { cursor?: { firstBatch?: Record<string, unknown>[] } };
+
+    const doc = result.cursor?.firstBatch?.[0];
+    if (!doc) return empty;
+
+    return {
+      submitLatitude: typeof doc.submitLatitude === "number" ? doc.submitLatitude : null,
+      submitLongitude: typeof doc.submitLongitude === "number" ? doc.submitLongitude : null,
+      submitAccuracy: typeof doc.submitAccuracy === "number" ? doc.submitAccuracy : null,
+      submitAddress: typeof doc.submitAddress === "string" ? doc.submitAddress : null,
+      submitMapUrl: typeof doc.submitMapUrl === "string" ? doc.submitMapUrl : null,
+      submitLocationAt: parseMongoDate(doc.submitLocationAt),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export async function getReportById(id: string) {
-  return prisma.serviceReport.findUnique({
+  const report = await prisma.serviceReport.findUnique({
     where: { id },
     include: {
       site: { select: { id: true, name: true } },
@@ -463,4 +547,33 @@ export async function getReportById(id: string) {
       },
     },
   });
+
+  if (!report) return null;
+
+  const location = await readSubmitLocationFields(id);
+  return { ...report, ...location };
+}
+
+export async function saveReportSubmitLocation(reportId: string, rawLocation: unknown) {
+  if (!isMongoObjectId(reportId)) return null;
+
+  const resolved = await resolveSubmitLocation(rawLocation);
+  if (!resolved) return getReportById(reportId);
+
+  await rawCommand({
+    update: "ServiceReport",
+    updates: [
+      {
+        q: { _id: oid(reportId) },
+        u: {
+          $set: {
+            ...submitLocationDoc(resolved),
+            updatedAt: mongoDate(),
+          },
+        },
+      },
+    ],
+  });
+
+  return getReportById(reportId);
 }

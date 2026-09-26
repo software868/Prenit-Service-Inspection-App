@@ -145,6 +145,12 @@ model ServiceReport {
   status       ReportStatus @default(DRAFT)
   breadcrumb   String
   submittedAt  DateTime?
+  submitLatitude   Float?
+  submitLongitude  Float?
+  submitAccuracy   Float?
+  submitAddress    String?
+  submitMapUrl     String?
+  submitLocationAt DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

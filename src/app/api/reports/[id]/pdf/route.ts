@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    const pdfBuffer = generateReportPDF(report);
+    const pdfBuffer = await generateReportPDF(report);
 
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {

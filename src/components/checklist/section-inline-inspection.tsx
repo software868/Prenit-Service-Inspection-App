@@ -5,6 +5,7 @@ import { PageShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { useAuth } from "@/hooks/use-auth";
+import { withSubmitLocation } from "@/lib/capture-submit-location";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import type { ChecklistItemResponse, SelectionPath } from "@/lib/types";
 import { useInspectionStore } from "@/store/inspection-store";
@@ -212,7 +213,7 @@ export function SectionInlineInspection({
     try {
       if (!isOnline()) {
         saveOfflineDraft({
-          ...buildPayload("SUBMITTED"),
+          ...(await withSubmitLocation(buildPayload("SUBMITTED"))),
           path: selection,
           status: "SUBMITTED",
         });
@@ -223,7 +224,7 @@ export function SectionInlineInspection({
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload("SUBMITTED")),
+        body: JSON.stringify(await withSubmitLocation(buildPayload("SUBMITTED"))),
       });
       if (!res.ok) {
         const failed = await res.json().catch(() => ({}));

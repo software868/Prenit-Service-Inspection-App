@@ -1,24 +1,32 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { VOICE_LANGUAGES } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Mic, MicOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface SpeechRecognitionResult {
+interface SpeechAlternative {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
   isFinal: boolean;
-  0: { transcript: string };
   length: number;
+  0?: SpeechAlternative;
+  item?: (index: number) => SpeechAlternative;
 }
 
-interface SpeechRecognitionEvent extends Event {
+interface SpeechRecognitionEventLike extends Event {
   resultIndex: number;
-  results: SpeechRecognitionResultList & Iterable<SpeechRecognitionResult>;
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
 }
 
-interface SpeechRecognitionErrorEvent extends Event {
+interface SpeechRecognitionErrorEventLike extends Event {
   error: string;
-  message?: string;
 }
 
 interface SpeechRecognitionInstance extends EventTarget {
@@ -29,8 +37,8 @@ interface SpeechRecognitionInstance extends EventTarget {
   start: () => void;
   stop: () => void;
   abort: () => void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
 }
@@ -49,11 +57,22 @@ interface VoiceControlsProps {
   compact?: boolean;
 }
 
-const DEFAULT_LANG = "en-IN";
+const LANG_KEY = "prenit-voice-lang-id";
+const DEFAULT_LANG_ID = "hi";
+
+function langCodeFromId(id: string) {
+  return VOICE_LANGUAGES.find((item) => item.id === id)?.code || "hi-IN";
+}
 
 function getSpeechRecognitionCtor(): (new () => SpeechRecognitionInstance) | null {
   if (typeof window === "undefined") return null;
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function readSavedLangId(): string {
+  if (typeof window === "undefined") return DEFAULT_LANG_ID;
+  const saved = window.localStorage.getItem(LANG_KEY);
+  return VOICE_LANGUAGES.some((item) => item.id === saved) ? saved! : DEFAULT_LANG_ID;
 }
 
 function joinRemarks(base: string, spoken: string): string {
@@ -64,21 +83,27 @@ function joinRemarks(base: string, spoken: string): string {
   return `${trimmedBase} ${trimmedSpoken}`;
 }
 
+function readTranscript(result: SpeechRecognitionResultLike): string {
+  const alternative =
+    result[0] || (typeof result.item === "function" ? result.item(0) : undefined);
+  return (alternative?.transcript || "").replace(/\s+/g, " ").trim();
+}
+
 function errorMessage(code: string): string {
   switch (code) {
     case "not-allowed":
     case "service-not-allowed":
-      return "Microphone permission blocked. Allow mic for this site and try again.";
+      return "Mic blocked. Allow microphone for this site and tap Voice again.";
     case "no-speech":
-      return "No speech heard. Tap Voice and speak again.";
+      return "No speech heard. Keep holding Voice and speak clearly.";
     case "audio-capture":
       return "No microphone found. Check device settings.";
     case "network":
-      return "Voice needs internet (Chrome speech service). Check connection.";
+      return "Voice needs internet. Check data/Wi‑Fi and try again.";
     case "aborted":
       return "";
     default:
-      return "Voice failed. Use Chrome/Edge on HTTPS, or type the remark.";
+      return "Voice failed. Use Chrome or Edge, then tap Voice again.";
   }
 }
 
@@ -91,11 +116,14 @@ export function VoiceControls({
   const [isListening, setIsListening] = useState(false);
   const [supported, setSupported] = useState(true);
   const [error, setError] = useState("");
+  const [langId, setLangId] = useState(DEFAULT_LANG_ID);
+  const [liveText, setLiveText] = useState("");
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onChangeRef = useRef(onChange);
   const valueRef = useRef(value);
-  const isListeningRef = useRef(false);
+  const langRef = useRef(langCodeFromId(DEFAULT_LANG_ID));
+  const wantedRef = useRef(false);
   const baseTextRef = useRef("");
   const sessionFinalRef = useRef("");
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,7 +137,12 @@ export function VoiceControls({
   }, [value]);
 
   useEffect(() => {
+    langRef.current = langCodeFromId(langId);
+  }, [langId]);
+
+  useEffect(() => {
     setSupported(Boolean(getSpeechRecognitionCtor()));
+    setLangId(readSavedLangId());
   }, []);
 
   const clearRestartTimer = () => {
@@ -119,114 +152,123 @@ export function VoiceControls({
     }
   };
 
-  const ensureRecognition = useCallback(() => {
-    if (recognitionRef.current) return recognitionRef.current;
-
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      setSupported(false);
-      return null;
+  const destroyRecognition = () => {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    recognition.onstart = null;
+    try {
+      recognition.abort();
+    } catch {
+      // ignore
     }
+  };
+
+  const startEngine = useCallback(() => {
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor || !wantedRef.current) return;
+
+    destroyRecognition();
 
     const recognition = new Ctor();
-    recognition.continuous = true;
+    // Single-shot + restart is more reliable on Android Chrome than continuous=true
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.lang = DEFAULT_LANG;
+    recognition.lang = langRef.current;
 
     recognition.onstart = () => {
       setError("");
       setIsListening(true);
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       let interim = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        const transcript = result[0]?.transcript ?? "";
+        const transcript = readTranscript(result);
         if (!transcript) continue;
 
         if (result.isFinal) {
-          sessionFinalRef.current += transcript;
-          if (!sessionFinalRef.current.endsWith(" ")) {
-            sessionFinalRef.current += " ";
-          }
+          sessionFinalRef.current = joinRemarks(sessionFinalRef.current, transcript);
         } else {
-          interim += transcript;
+          interim = transcript;
         }
       }
 
-      const spoken = `${sessionFinalRef.current}${interim}`.trim();
-      onChangeRef.current(joinRemarks(baseTextRef.current, spoken));
+      setLiveText(interim || sessionFinalRef.current);
+      onChangeRef.current(joinRemarks(baseTextRef.current, joinRemarks(sessionFinalRef.current, interim)));
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       const code = event.error || "unknown";
-      if (code === "aborted" || code === "no-speech") {
-        // Keep session alive for continuous listening; browser may pause briefly
-        if (code === "no-speech" && isListeningRef.current) {
-          setError(errorMessage(code));
-        }
+      if (code === "aborted" || code === "no-speech") return;
+      if (code === "network") {
+        setError(errorMessage(code));
         return;
       }
-
-      isListeningRef.current = false;
+      wantedRef.current = false;
       setIsListening(false);
       setError(errorMessage(code));
     };
 
     recognition.onend = () => {
-      clearRestartTimer();
-
-      if (!isListeningRef.current) {
+      setLiveText("");
+      if (!wantedRef.current) {
         setIsListening(false);
         return;
       }
 
-      // Browsers often end after a pause; restart after a short delay
+      clearRestartTimer();
       restartTimerRef.current = setTimeout(() => {
-        if (!isListeningRef.current || !recognitionRef.current) {
+        if (!wantedRef.current) {
           setIsListening(false);
           return;
         }
         try {
-          recognitionRef.current.start();
+          startEngine();
         } catch {
-          isListeningRef.current = false;
+          wantedRef.current = false;
           setIsListening(false);
         }
-      }, 250);
+      }, 180);
     };
 
     recognitionRef.current = recognition;
-    return recognition;
+
+    try {
+      recognition.start();
+    } catch {
+      restartTimerRef.current = setTimeout(() => {
+        if (!wantedRef.current) return;
+        try {
+          recognition.start();
+        } catch {
+          wantedRef.current = false;
+          setIsListening(false);
+          setError("Could not start voice. Tap Voice again.");
+        }
+      }, 280);
+    }
   }, []);
 
   useEffect(() => {
     return () => {
-      isListeningRef.current = false;
+      wantedRef.current = false;
       clearRestartTimer();
-      const recognition = recognitionRef.current;
-      if (recognition) {
-        recognition.onresult = null;
-        recognition.onerror = null;
-        recognition.onend = null;
-        recognition.onstart = null;
-        try {
-          recognition.abort();
-        } catch {
-          // ignore
-        }
-      }
-      recognitionRef.current = null;
+      destroyRecognition();
     };
   }, []);
 
   const stopListening = useCallback(() => {
-    isListeningRef.current = false;
+    wantedRef.current = false;
     clearRestartTimer();
     setIsListening(false);
+    setLiveText("");
     try {
       recognitionRef.current?.stop();
     } catch {
@@ -234,67 +276,46 @@ export function VoiceControls({
     }
   }, []);
 
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(() => {
     setError("");
+    setLiveText("");
 
-    if (!window.isSecureContext) {
-      setError("Voice needs HTTPS. Open the Vercel https:// link.");
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError("Voice needs HTTPS. Open the Vercel https:// link on the phone.");
       return;
     }
 
-    const recognition = ensureRecognition();
-    if (!recognition) {
-      setError("Voice not supported in this browser. Use Chrome or Edge.");
+    if (!getSpeechRecognitionCtor()) {
+      setSupported(false);
+      setError("Voice not supported here. Use Chrome or Edge.");
       return;
-    }
-
-    // Request mic permission first — required on many mobile browsers in production
-    if (navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch {
-        setError("Microphone permission blocked. Allow mic for this site.");
-        return;
-      }
     }
 
     baseTextRef.current = valueRef.current;
     sessionFinalRef.current = "";
-    recognition.lang = DEFAULT_LANG;
-    isListeningRef.current = true;
+    wantedRef.current = true;
     setIsListening(true);
-
-    try {
-      recognition.start();
-    } catch {
-      // Already started — restart cleanly
-      try {
-        recognition.stop();
-      } catch {
-        // ignore
-      }
-      setTimeout(() => {
-        try {
-          recognition.start();
-          isListeningRef.current = true;
-          setIsListening(true);
-        } catch {
-          isListeningRef.current = false;
-          setIsListening(false);
-          setError("Could not start voice. Tap Voice again.");
-        }
-      }, 300);
-    }
-  }, [ensureRecognition]);
+    startEngine();
+  }, [startEngine]);
 
   const toggleListening = useCallback(() => {
-    if (isListeningRef.current) {
+    if (wantedRef.current || isListening) {
       stopListening();
-    } else {
-      void startListening();
+      return;
     }
-  }, [startListening, stopListening]);
+    startListening();
+  }, [isListening, startListening, stopListening]);
+
+  const changeLang = (id: string) => {
+    setLangId(id);
+    langRef.current = langCodeFromId(id);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LANG_KEY, id);
+    }
+    if (wantedRef.current) {
+      startEngine();
+    }
+  };
 
   if (!supported) {
     return (
@@ -306,29 +327,46 @@ export function VoiceControls({
 
   return (
     <div className={cn(compact ? "space-y-2" : "space-y-3", className)}>
-      <Button
-        type="button"
-        variant={isListening ? "danger" : "outline"}
-        size="sm"
-        onClick={toggleListening}
-      >
-        {isListening ? (
-          <>
-            <MicOff className="h-4 w-4" />
-            Stop
-          </>
-        ) : (
-          <>
-            <Mic className="h-4 w-4" />
-            Voice
-          </>
-        )}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant={isListening ? "danger" : "outline"}
+          size="sm"
+          onClick={toggleListening}
+        >
+          {isListening ? (
+            <>
+              <MicOff className="h-4 w-4" />
+              Stop
+            </>
+          ) : (
+            <>
+              <Mic className="h-4 w-4" />
+              Voice
+            </>
+          )}
+        </Button>
+        {VOICE_LANGUAGES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => changeLang(option.id)}
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              langId === option.id
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       {isListening && (
         <p className="flex items-center gap-2 text-xs font-medium text-orange-600">
           <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
-          Listening… tap Stop when done
+          {liveText ? liveText : "Listening… speak now, then tap Stop"}
         </p>
       )}
 

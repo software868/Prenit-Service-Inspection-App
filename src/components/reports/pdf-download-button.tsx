@@ -9,6 +9,7 @@ interface PdfDownloadButtonProps {
   reportNumber?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
+  disabled?: boolean;
 }
 
 export function PdfDownloadButton({
@@ -16,6 +17,7 @@ export function PdfDownloadButton({
   reportNumber,
   size = "sm",
   className,
+  disabled,
 }: PdfDownloadButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -47,9 +49,16 @@ export function PdfDownloadButton({
 
   return (
     <div className={className}>
-      <Button type="button" variant="secondary" size={size} onClick={download} loading={loading}>
+      <Button
+        type="button"
+        variant="secondary"
+        size={size}
+        onClick={download}
+        loading={loading}
+        disabled={disabled || loading}
+      >
         <FileDown className="h-4 w-4" />
-        PDF
+        {disabled && !loading ? "Getting location…" : "PDF"}
       </Button>
       {error ? <p className="mt-1 text-xs text-orange-600">{error}</p> : null}
     </div>

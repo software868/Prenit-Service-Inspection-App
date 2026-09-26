@@ -1,5 +1,6 @@
 "use client";
 
+import { useInspectionStore } from "@/store/inspection-store";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
@@ -48,6 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setUser(null);
     }
+  }, []);
+
+  useEffect(() => {
+    void useInspectionStore.persist.rehydrate();
   }, []);
 
   useEffect(() => {

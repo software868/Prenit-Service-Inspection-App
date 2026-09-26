@@ -1,5 +1,6 @@
 "use client";
 
+import { ClientOnly } from "@/components/client-only";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -155,16 +156,27 @@ export function PageShell({
           padBottom && "pb-20"
         )}
       >
-        {breadcrumbs && breadcrumbs.length > 0 && (
-          <Breadcrumbs items={breadcrumbs} className="mb-4" />
-        )}
-        {(title || subtitle) && (
-          <div className="mb-6">
-            {title && <h1 className="text-2xl font-bold text-slate-900">{title}</h1>}
-            {subtitle && <p className="mt-1 text-slate-600">{subtitle}</p>}
-          </div>
-        )}
-        {children}
+        <ClientOnly
+          fallback={
+            (title || subtitle) ? (
+              <div className="mb-6">
+                {title && <h1 className="text-2xl font-bold text-slate-900">{title}</h1>}
+                {subtitle && <p className="mt-1 text-slate-600">{subtitle}</p>}
+              </div>
+            ) : null
+          }
+        >
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <Breadcrumbs items={breadcrumbs} className="mb-4" />
+          )}
+          {(title || subtitle) && (
+            <div className="mb-6">
+              {title && <h1 className="text-2xl font-bold text-slate-900">{title}</h1>}
+              {subtitle && <p className="mt-1 text-slate-600">{subtitle}</p>}
+            </div>
+          )}
+          {children}
+        </ClientOnly>
       </main>
     </div>
   );

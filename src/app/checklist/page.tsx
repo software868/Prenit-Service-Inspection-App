@@ -8,6 +8,7 @@ import { hasValidSelection, parseChecklistParams, buildBreadcrumbNavItems } from
 import { useAuth } from "@/hooks/use-auth";
 import { getExcelMgpsHeading } from "@/lib/excel-mgps-checklist";
 import { getExcelMotHeading } from "@/lib/excel-mot-checklist";
+import { withSubmitLocation } from "@/lib/capture-submit-location";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import { resolveChecklistItems } from "@/lib/resolve-checklist-items";
 import { usesExcelChecklists } from "@/lib/site-checklists";
@@ -180,7 +181,7 @@ function ChecklistPageContent() {
         const res = await fetch("/api/reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildPayload("SUBMITTED")),
+          body: JSON.stringify(await withSubmitLocation(buildPayload("SUBMITTED"))),
         });
 
         if (!res.ok) throw new Error("Submit failed");
@@ -191,7 +192,7 @@ function ChecklistPageContent() {
         router.push(`/reports/${saved.id}/success`);
       } else {
         saveOfflineDraft({
-          ...buildPayload("SUBMITTED"),
+          ...(await withSubmitLocation(buildPayload("SUBMITTED"))),
           path: selection!,
           status: "SUBMITTED",
         });

@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import { useInspectionStore } from "@/store/inspection-store";
 
 export function useStoreHydrated() {
-  const [hydrated, setHydrated] = useState(
-    () => useInspectionStore.persist.hasHydrated()
-  );
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (hydrated) return;

@@ -16,6 +16,7 @@ import { getExcelMotHeading } from "@/lib/excel-mot-checklist";
 import { getInspectionBreadcrumb, getNavBreadcrumbs } from "@/lib/extra-sites";
 import { usesExcelChecklists } from "@/lib/site-checklists";
 import { mergeNamedCatalog } from "@/lib/hierarchy-utils";
+import { withSubmitLocation } from "@/lib/capture-submit-location";
 import { isOnline, saveOfflineDraft } from "@/lib/offline";
 import { getMotDetailedChecklistItems, getMotEquipmentNames } from "@/lib/site-checklists";
 import type { ChecklistItemResponse, SelectionPath } from "@/lib/types";
@@ -359,7 +360,7 @@ export default function LocationPage() {
         const res = await fetch("/api/reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildPayload("SUBMITTED")),
+          body: JSON.stringify(await withSubmitLocation(buildPayload("SUBMITTED"))),
         });
 
         if (!res.ok) {
@@ -373,7 +374,7 @@ export default function LocationPage() {
         router.push(`/reports/${saved.id}/success`);
       } else {
         saveOfflineDraft({
-          ...buildPayload("SUBMITTED"),
+          ...(await withSubmitLocation(buildPayload("SUBMITTED"))),
           path: selection,
           status: "SUBMITTED",
         });

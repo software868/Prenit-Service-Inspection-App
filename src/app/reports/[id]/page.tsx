@@ -1,6 +1,7 @@
 "use client";
 
 import { PageShell } from "@/components/layout/app-shell";
+import { InspectionLocationCard } from "@/components/reports/inspection-location-card";
 import { PdfDownloadButton } from "@/components/reports/pdf-download-button";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
@@ -19,6 +20,12 @@ interface ReportDetail {
   createdAt: string;
   submittedAt: string | null;
   site: { name: string };
+  submitLatitude?: number | null;
+  submitLongitude?: number | null;
+  submitAccuracy?: number | null;
+  submitAddress?: string | null;
+  submitMapUrl?: string | null;
+  submitLocationAt?: string | null;
   responses: {
     status: string | null;
     remarks: string | null;
@@ -100,6 +107,20 @@ export default function ReportDetailPage() {
           className="mt-4"
         />
       </div>
+
+      {(report.submitLatitude != null && report.submitLongitude != null) ||
+      report.submitAddress ? (
+        <div className="mb-6">
+          <InspectionLocationCard
+            latitude={report.submitLatitude}
+            longitude={report.submitLongitude}
+            address={report.submitAddress}
+            accuracy={report.submitAccuracy}
+            capturedAt={report.submitLocationAt}
+            mapUrl={report.submitMapUrl}
+          />
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         {report.responses

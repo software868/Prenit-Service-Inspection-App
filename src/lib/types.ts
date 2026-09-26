@@ -53,6 +53,13 @@ export interface ChecklistItemResponse {
   audioFileName?: string;
 }
 
+export interface SubmitLocationInput {
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  capturedAt?: string | null;
+}
+
 export interface DraftReport {
   id?: string;
   reportNumber?: string;
@@ -61,6 +68,7 @@ export interface DraftReport {
   engineerName: string;
   responses: ChecklistItemResponse[];
   status: "DRAFT" | "SUBMITTED";
+  submitLocation?: SubmitLocationInput | null;
   updatedAt?: string;
 }
 

@@ -32,6 +32,7 @@ export const useInspectionStore = create<InspectionStore>()(
     }),
     {
       name: "prenit-inspection-store",
+      skipHydration: true,
     }
   )
 );
